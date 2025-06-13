@@ -3,7 +3,7 @@ import numpy as np
 import joblib
 from pathlib import Path
 
-MODEL_PATH = Path("breast_cancer_pipeline.pkl")   # full pipeline
+MODEL_PATH = Path("breast_cancer_clf.pkl")   #changed
 TEST_ACC   = 0.971
 
 @st.cache_resource
