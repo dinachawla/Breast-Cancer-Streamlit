@@ -72,7 +72,7 @@ for row_start in range(0, len(FEATURES), 2):
             st.markdown(f"<h4 style='margin-bottom:0.2rem'>{label}</h4>",
                         unsafe_allow_html=True)
             st.caption(desc)
-            st.markdown(f"*Population average: **{avg:.3f}***")
+            st.caption(f"*Population average: {avg:.3f}*")
 
             s_col, n_col = st.columns([3, 1])
             with s_col:
