@@ -7,14 +7,13 @@ from pathlib import Path
 MODEL_PATH = Path("breast_cancer_pipe.pkl")
 TEST_ACC   = 0.971
 
-# (key, label, description, min, max, slider_step, default)
 FEATURES = [
     ("radius_mean",    "Mean radius (mm)",
      "Average distance from the nucleus centre to the cell border.",
      0.0, 50.0, 0.01, 14.127),
 
     ("texture_mean",   "Mean texture",
-     "Std-dev of grey-scale values inside the nucleus — higher means more heterogeneity.",
+     "Std-dev of grey-scale values inside the nucleus—higher means more heterogeneity.",
      0.0, 100.0, 0.01, 19.289),
 
     ("perimeter_mean", "Mean perimeter (mm)",
@@ -26,7 +25,6 @@ FEATURES = [
      0.0, 2500.0, 1.0, 654.889),
 ]
 
-# ─── Load model once ─────────────────────────────────────────────────────────
 @st.cache_resource
 def load_model(p: Path):
     return joblib.load(p)
@@ -42,28 +40,22 @@ st.markdown(
 st.caption(f"Model hold-out accuracy: {TEST_ACC:.1%}")
 st.subheader("Enter mean-value tumour metrics")
 
-# ─── Custom CSS ─ make button match slider red & pop out ─────────────────────
+# ─── Custom CSS: red accent & button styling ────────────────────────────────
 st.markdown(
     """
     <style>
-      /* set a red brand colour for sliders & other primary accents */
-      :root {
-        --primary-color: #d7263d;   /* crimson-red */
-      }
-      /* recolour and enlarge the Classify button */
+      :root { --primary-color:#d7263d; }
       div.stButton > button:first-child{
-        background-color: var(--primary-color);
-        border-color:   var(--primary-color);
-        color:#ffffff;
+        background-color:var(--primary-color);
+        border-color:var(--primary-color);
+        color:#fff;
         width:100%;
         font-size:1.1rem;
         font-weight:600;
         padding:0.6em 1.2em;
         border-radius:8px;
       }
-      div.stButton > button:first-child:hover{
-        opacity:0.9;
-      }
+      div.stButton > button:first-child:hover{ opacity:0.9; }
     </style>
     """,
     unsafe_allow_html=True,
@@ -80,7 +72,6 @@ for row_start in range(0, len(FEATURES), 2):
                         unsafe_allow_html=True)
             st.caption(desc)
 
-            # slider + precise number box
             s_col, n_col = st.columns([3, 1])
             with s_col:
                 slid_val = st.slider(
@@ -101,10 +92,13 @@ for row_start in range(0, len(FEATURES), 2):
     if row_start + 2 < len(FEATURES):
         st.markdown("<div style='height:1rem'></div>", unsafe_allow_html=True)
 
+# ─── NEW spacer between grid and button ──────────────────────────────────────
+st.markdown("<div style='height:2rem'></div>", unsafe_allow_html=True)
+
 # ─── Prediction & probability explanation ───────────────────────────────────
 if st.button("Classify"):
     X = np.array([[values[k] for k, *_ in FEATURES]])
-    p = pipe.predict_proba(X)[0, 1]     # P(malignant)
+    p = pipe.predict_proba(X)[0, 1]  # P(malignant)
 
     if p >= 0.5:
         st.markdown(f"⚠️ **Malignant** *(probability {p:.1%})*")
