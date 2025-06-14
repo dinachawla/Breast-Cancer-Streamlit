@@ -3,11 +3,11 @@ import numpy as np
 import joblib
 from pathlib import Path
 
-# ─── Model & dataset settings ────────────────────────────────────────────────
+# ──────────────────────────  Model & settings  ───────────────────────────────
 MODEL_PATH = Path("breast_cancer_pipe.pkl")
-TEST_ACC   = 0.971
+TEST_ACC   = 0.971   # hold-out accuracy
 
-# (key, label, description, min, max, slider_step, default/avg)
+# (key, label, description, min, max, slider_step, population_mean)
 FEATURES = [
     ("radius_mean",    "Mean radius (mm)",
      "Average distance from the nucleus centre to the cell border.",
@@ -27,12 +27,12 @@ FEATURES = [
 ]
 
 @st.cache_resource
-def load_model(p: Path):
-    return joblib.load(p)
+def load_model(path: Path):
+    return joblib.load(path)
 
 pipe = load_model(MODEL_PATH)
 
-# ─── Page header ─────────────────────────────────────────────────────────────
+# ─────────────────────────────  Page header  ─────────────────────────────────
 st.title("Breast Cancer ML Classifier 🩺")
 st.markdown(
     "Estimate whether a breast-tumour sample is **benign** or **malignant**. "
@@ -41,11 +41,11 @@ st.markdown(
 st.caption(f"Model hold-out accuracy: {TEST_ACC:.1%}")
 st.subheader("Enter mean-value tumour metrics")
 
-# ─── Custom CSS – accent colour + button style ───────────────────────────────
+# ───────────────────  Global accent & button styling (CSS)  ──────────────────
 st.markdown(
     """
     <style>
-      :root { --primary-color:#d7263d; }
+      :root { --primary-color:#d7263d; }          /* crimson accent */
       div.stButton > button:first-child{
         background-color:var(--primary-color);
         border-color:var(--primary-color);
@@ -62,17 +62,17 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# ─── Grid of sliders + number inputs ─────────────────────────────────────────
+# ────────────────────────  Input grid (2 × 2)  ───────────────────────────────
 values = {}
 for row_start in range(0, len(FEATURES), 2):
     left, right = st.columns(2, gap="large")
-    for col, cfg in zip((left, right), FEATURES[row_start : row_start + 2]):
+    for col, cfg in zip((left, right), FEATURES[row_start:row_start + 2]):
         key, label, desc, vmin, vmax, step, avg = cfg
         with col:
             st.markdown(f"<h4 style='margin-bottom:0.2rem'>{label}</h4>",
                         unsafe_allow_html=True)
             st.caption(desc)
-            st.caption(f"*Population average: {avg:.3f}*")
+            st.caption(f"*Population average: {avg:.3f}*")  # italic, same style
 
             s_col, n_col = st.columns([3, 1])
             with s_col:
@@ -97,22 +97,27 @@ for row_start in range(0, len(FEATURES), 2):
 # Spacer before button
 st.markdown("<div style='height:2rem'></div>", unsafe_allow_html=True)
 
-# ─── Prediction & probability explanation ───────────────────────────────────
+# ───────────────  Prediction & highly distinct result banner  ────────────────
 if st.button("Classify"):
     X = np.array([[values[k] for k, *_ in FEATURES]])
-    p = pipe.predict_proba(X)[0, 1]        # P(malignant)
+    p = pipe.predict_proba(X)[0, 1]            # probability of malignant
 
     if p >= 0.5:
-        st.markdown(f"⚠️ **Malignant** *(probability {p:.1%})*")
-        st.info(
-            f"The model estimates a **{p:.1%}** chance the tumour is malignant. "
-            f"Roughly **{p*100:.0f}** of 100 similar cases would be malignant."
+        st.error(
+            f"🚨 **MALIGNANT**  \n"
+            f"Probability: **{p:.1%}** "
+            f"(≈ {p*100:.0f} out of 100 similar cases)",
+            icon="🚨",
         )
     else:
-        st.markdown(f"✅ **Benign** *(probability {1-p:.1%})*")
-        st.info(
-            f"The model estimates a **{1-p:.1%}** chance the tumour is benign "
-            f"and **{p:.1%}** malignant."
+        st.success(
+            f"🩺 **BENIGN**  \n"
+            f"Probability: **{1-p:.1%}** "
+            f"(≈ {(1-p)*100:.0f} out of 100 similar cases)",
+            icon="✅",
         )
 
-    st.caption("Model is for educational use only and does not replace professional medical advice.")
+    st.caption(
+        "Model is for educational use only and **does not replace professional "
+        "medical advice.**"
+    )
