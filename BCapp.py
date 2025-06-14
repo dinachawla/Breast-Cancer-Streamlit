@@ -7,7 +7,6 @@ from pathlib import Path
 MODEL_PATH = Path("breast_cancer_pipe.pkl")
 TEST_ACC   = 0.971
 
-# Dataset-wide means for slider defaults
 METRICS = {
     "radius_mean": {
         "label": "Mean radius (mm)",
@@ -40,32 +39,32 @@ pipe = load_model(MODEL_PATH)
 # ─── UI ───────────────────────────────────────────────────────────────────────
 st.title("Breast-tumor classifier 🩺")
 st.caption(f"Hold-out accuracy: {TEST_ACC:.1%}")
-
 st.subheader("Enter mean-value tumour metrics")
 
-# Collect inputs vertically in the order defined above
 values = {}
 for key, cfg in METRICS.items():
-    st.markdown(f"**{cfg['label']}**")
+    # Bigger, distinct metric heading
+    st.markdown(f"<h4 style='margin-bottom:0.2rem'>{cfg['label']}</h4>",
+                unsafe_allow_html=True)
     st.caption(cfg["desc"])
     values[key] = st.slider(
-        label="",  key=key,
+        label=" ", key=key,
         min_value=cfg["min"], max_value=cfg["max"],
         value=cfg["avg"], step=cfg["step"]
     )
-    st.markdown("---")   # thin divider for even spacing
+    st.divider()          # neat horizontal line (Streamlit ≥1.25)
 
 # ─── Prediction & explanation ────────────────────────────────────────────────
 if st.button("Classify"):
     X = np.array([[values[k] for k in METRICS]])
-    prob = pipe.predict_proba(X)[0, 1]          # P(malignant)
+    prob = pipe.predict_proba(X)[0, 1]        # P(malignant)
 
     if prob >= 0.5:
         st.markdown(f"⚠️ **Malignant** *(probability {prob:.1%})*")
         st.info(
             f"The model estimates a **{prob:.1%}** likelihood that the tumour "
-            "is malignant. In 100 similar cases, it would expect about "
-            f"**{prob*100:.0f}** to be malignant."
+            "is malignant. In 100 similar cases, about "
+            f"**{prob*100:.0f}** would be malignant."
         )
     else:
         st.markdown(f"✅ **Benign** *(probability {1-prob:.1%})*")
@@ -74,4 +73,4 @@ if st.button("Classify"):
             "is benign and **{prob:.1%}** malignant."
         )
 
-    st.caption("Model is for educational use only; it is not medical advice.")
+    st.caption("Model is for educational use only; it does not replace professional medical advice.")
