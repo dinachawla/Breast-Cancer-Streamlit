@@ -45,7 +45,7 @@ st.subheader("Enter mean-value tumour metrics")
 st.markdown(
     """
     <style>
-      :root { --primary-color:#d7263d; }          /* crimson accent */
+      :root { --primary-color:#d7263d; }
       div.stButton > button:first-child{
         background-color:var(--primary-color);
         border-color:var(--primary-color);
@@ -72,7 +72,7 @@ for row_start in range(0, len(FEATURES), 2):
             st.markdown(f"<h4 style='margin-bottom:0.2rem'>{label}</h4>",
                         unsafe_allow_html=True)
             st.caption(desc)
-            st.caption(f"*Population average: {avg:.3f}*")  # italic, same style
+            st.caption(f"*Population average: {avg:.3f}*")
 
             s_col, n_col = st.columns([3, 1])
             with s_col:
@@ -97,10 +97,13 @@ for row_start in range(0, len(FEATURES), 2):
 # Spacer before button
 st.markdown("<div style='height:2rem'></div>", unsafe_allow_html=True)
 
-# ───────────────  Prediction & highly distinct result banner  ────────────────
+# ───────────────  Prediction & distinct result banner  ───────────────────────
 if st.button("Classify"):
+    # EXTRA spacer between button and result card
+    st.markdown("<div style='height:2rem'></div>", unsafe_allow_html=True)
+
     X = np.array([[values[k] for k, *_ in FEATURES]])
-    p = pipe.predict_proba(X)[0, 1]            # probability of malignant
+    p = pipe.predict_proba(X)[0, 1]          # probability malignant
 
     if p >= 0.5:
         st.error(
