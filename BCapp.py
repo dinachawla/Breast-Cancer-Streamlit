@@ -5,7 +5,7 @@ from pathlib import Path
 
 # ─── Model & dataset settings ────────────────────────────────────────────────
 MODEL_PATH = Path("breast_cancer_pipe.pkl")
-TEST_ACC   = 0.971
+TEST_ACC   = 0.971   # hold-out accuracy
 
 # Slider configuration: (key, label, description, min, max, step, default)
 FEATURES = [
@@ -34,8 +34,14 @@ def load_model(p: Path):
 pipe = load_model(MODEL_PATH)
 
 # ─── Page header ─────────────────────────────────────────────────────────────
-st.title("Breast-tumor classifier 🩺")
-st.caption(f"Hold-out accuracy: {TEST_ACC:.1%}")
+st.title("Breast Cancer ML Classifier 🩺")
+st.markdown(
+    "Use this interactive demo to estimate whether a breast-tumour sample is "
+    "**benign** or **malignant** based on four diagnostic metrics. "
+    "Adjust each slider (defaults are the population averages) and click **“Classify”** "
+    "to see the model’s prediction and its confidence."
+)
+st.caption(f"Model hold-out accuracy: {TEST_ACC:.1%}")
 st.subheader("Enter mean-value tumour metrics")
 
 # ─── Grid of sliders (two columns, two rows) ─────────────────────────────────
@@ -54,7 +60,7 @@ for row_start in range(0, len(FEATURES), 2):
                 value=default, step=step
             )
 
-    # add a subtle vertical spacer after each row except the last
+    # subtle vertical spacer between the two grid rows
     if row_start + 2 < len(FEATURES):
         st.markdown("<div style='height:1rem'></div>", unsafe_allow_html=True)
 
@@ -77,4 +83,4 @@ if st.button("Classify"):
             "is benign and **{prob:.1%}** malignant."
         )
 
-    st.caption("Model is for educational use only; it is not a substitute for professional medical advice.")
+    st.caption("Model is for educational use only and does not replace professional medical advice.")
