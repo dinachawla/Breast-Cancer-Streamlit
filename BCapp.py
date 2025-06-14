@@ -42,7 +42,7 @@ st.markdown(
 st.caption(f"Model hold-out accuracy: {TEST_ACC:.1%}")
 st.subheader("Enter mean-value tumour metrics")
 
-# ─── Custom CSS – makes the Classify button use the slider’s primary color ───
+# ─── Custom CSS – color the Classify button like the sliders ────────────────
 st.markdown(
     """
     <style>
@@ -58,10 +58,10 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# ─── Grid of sliders + number inputs (responsive 2 × 2) ──────────────────────
+# ─── Grid of inputs ──────────────────────────────────────────────────────────
 values = {}
 for row_start in range(0, len(FEATURES), 2):
-    left, right = st.columns(2, gap="large")           # even 50 / 50 columns
+    left, right = st.columns(2, gap="large")
     for col, cfg in zip((left, right), FEATURES[row_start : row_start + 2]):
         key, label, desc, vmin, vmax, step, default = cfg
         with col:
@@ -69,22 +69,31 @@ for row_start in range(0, len(FEATURES), 2):
                         unsafe_allow_html=True)
             st.caption(desc)
 
-            # sub-columns: big slider | small number box
-            s_col, n_col = st.columns([3, 1])
-            with s_col:
-                slid_val = st.slider(
-                    label="", key=f"s_{key}",
+            if key == "area_mean":
+                # ── Number box only (no slider) ───────────────────────────
+                values[key] = st.number_input(
+                    label="Exact value", key=f"n_{key}",
                     min_value=vmin, max_value=vmax,
-                    value=default, step=step, label_visibility="collapsed"
+                    value=default, step=step, format="%d"
                 )
-            with n_col:
-                num_val = st.number_input(
-                    label="Exact", key=f"n_{key}",
-                    min_value=vmin, max_value=vmax,
-                    value=slid_val, step=step,
-                    format="%.4f" if step < 1 else "%d"
-                )
-            values[key] = num_val    # model uses the precise box value
+            else:
+                # ── Slider + number box pair ──────────────────────────────
+                s_col, n_col = st.columns([3, 1])
+                with s_col:
+                    slid_val = st.slider(
+                        label="", key=f"s_{key}",
+                        min_value=vmin, max_value=vmax,
+                        value=default, step=step,
+                        label_visibility="collapsed"
+                    )
+                with n_col:
+                    num_val = st.number_input(
+                        label="Exact", key=f"n_{key}",
+                        min_value=vmin, max_value=vmax,
+                        value=slid_val, step=step,
+                        format="%.4f" if step < 1 else "%d"
+                    )
+                values[key] = num_val
 
     if row_start + 2 < len(FEATURES):
         st.markdown("<div style='height:1rem'></div>", unsafe_allow_html=True)
