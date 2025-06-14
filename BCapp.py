@@ -5,7 +5,7 @@ from pathlib import Path
 
 # ─── Model & dataset settings ────────────────────────────────────────────────
 MODEL_PATH = Path("breast_cancer_pipe.pkl")
-TEST_ACC   = 0.971            # hold-out accuracy
+TEST_ACC   = 0.971
 
 # (key, label, description, min, max, slider_step, default)
 FEATURES = [
@@ -14,7 +14,7 @@ FEATURES = [
      0.0, 50.0, 0.01, 14.127),
 
     ("texture_mean",   "Mean texture",
-     "Std-dev of greyscale values inside the nucleus—higher means more heterogeneity.",
+     "Std-dev of grey-scale values inside the nucleus — higher means more heterogeneity.",
      0.0, 100.0, 0.01, 19.289),
 
     ("perimeter_mean", "Mean perimeter (mm)",
@@ -42,16 +42,27 @@ st.markdown(
 st.caption(f"Model hold-out accuracy: {TEST_ACC:.1%}")
 st.subheader("Enter mean-value tumour metrics")
 
-# ─── Custom CSS – colour the Classify button like the sliders ────────────────
+# ─── Custom CSS ─ make button match slider red & pop out ─────────────────────
 st.markdown(
     """
     <style>
+      /* set a red brand colour for sliders & other primary accents */
+      :root {
+        --primary-color: #d7263d;   /* crimson-red */
+      }
+      /* recolour and enlarge the Classify button */
       div.stButton > button:first-child{
         background-color: var(--primary-color);
+        border-color:   var(--primary-color);
         color:#ffffff;
+        width:100%;
+        font-size:1.1rem;
+        font-weight:600;
+        padding:0.6em 1.2em;
+        border-radius:8px;
       }
       div.stButton > button:first-child:hover{
-        opacity:0.85;
+        opacity:0.9;
       }
     </style>
     """,
@@ -69,7 +80,7 @@ for row_start in range(0, len(FEATURES), 2):
                         unsafe_allow_html=True)
             st.caption(desc)
 
-            # slider + number box (with format chosen to avoid warnings)
+            # slider + precise number box
             s_col, n_col = st.columns([3, 1])
             with s_col:
                 slid_val = st.slider(
@@ -79,34 +90,5 @@ for row_start in range(0, len(FEATURES), 2):
                     label_visibility="collapsed"
                 )
             with n_col:
-                # Use float format for every metric; avoids the %d warning
                 num_val = st.number_input(
-                    label="Exact", key=f"n_{key}",
-                    min_value=vmin, max_value=vmax,
-                    value=slid_val, step=step,
-                    format="%.4f" if step < 1 else "%.0f"
-                )
-            values[key] = num_val
-
-    if row_start + 2 < len(FEATURES):
-        st.markdown("<div style='height:1rem'></div>", unsafe_allow_html=True)
-
-# ─── Prediction & probability explanation ───────────────────────────────────
-if st.button("Classify"):
-    X = np.array([[values[k] for k, *_ in FEATURES]])
-    p = pipe.predict_proba(X)[0, 1]                    # P(malignant)
-
-    if p >= 0.5:
-        st.markdown(f"⚠️ **Malignant** *(probability {p:.1%})*")
-        st.info(
-            f"The model estimates a **{p:.1%}** chance the tumour is malignant. "
-            f"Roughly **{p*100:.0f}** of 100 similar cases would be malignant."
-        )
-    else:
-        st.markdown(f"✅ **Benign** *(probability {1-p:.1%})*")
-        st.info(
-            f"The model estimates a **{1-p:.1%}** chance the tumour is benign "
-            f"and **{p:.1%}** malignant."
-        )
-
-    st.caption("Model is for educational use only and does not replace professional medical advice.")
+                    label="Exact",
