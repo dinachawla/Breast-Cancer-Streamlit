@@ -5,7 +5,7 @@ from pathlib import Path
 
 # ─── Model & dataset settings ────────────────────────────────────────────────
 MODEL_PATH = Path("breast_cancer_pipe.pkl")
-TEST_ACC   = 0.971   # hold-out accuracy
+TEST_ACC   = 0.971            # hold-out accuracy
 
 # (key, label, description, min, max, slider_step, default)
 FEATURES = [
@@ -14,7 +14,7 @@ FEATURES = [
      0.0, 50.0, 0.01, 14.127),
 
     ("texture_mean",   "Mean texture",
-     "Standard deviation of gray-scale values inside the nucleus—higher means more heterogeneity.",
+     "Std-dev of grey-scale values inside the nucleus—higher means more heterogeneity.",
      0.0, 100.0, 0.01, 19.289),
 
     ("perimeter_mean", "Mean perimeter (mm)",
@@ -22,31 +22,46 @@ FEATURES = [
      0.0, 300.0, 0.01, 91.969),
 
     ("area_mean",      "Mean area (mm²)",
-     "Average two-dimensional area of the nucleus—larger areas indicate bigger nuclei.",
+     "Average two-dimensional area of the nucleus; larger areas indicate bigger nuclei.",
      0.0, 2500.0, 1.0, 654.889),
 ]
 
-# ─── Helper to load the model once ───────────────────────────────────────────
+# ─── Load model once ─────────────────────────────────────────────────────────
 @st.cache_resource
-def load_model(p: Path):
-    return joblib.load(p)
+def load_model(path: Path):
+    return joblib.load(path)
 
 pipe = load_model(MODEL_PATH)
 
 # ─── Page header ─────────────────────────────────────────────────────────────
 st.title("Breast Cancer ML Classifier 🩺")
 st.markdown(
-    "Use this interactive demo to estimate whether a breast-tumour sample is "
-    "**benign** or **malignant** based on four diagnostic metrics.  Adjust the "
-    "sliders *or* type exact numbers, then press **Classify**."
+    "Estimate whether a breast-tumour sample is **benign** or **malignant**.  "
+    "Move each slider *or* type an exact value, then press **Classify**."
 )
 st.caption(f"Model hold-out accuracy: {TEST_ACC:.1%}")
 st.subheader("Enter mean-value tumour metrics")
 
-# ─── Grid of sliders + number boxes ──────────────────────────────────────────
+# ─── Custom CSS – makes the Classify button use the slider’s primary color ───
+st.markdown(
+    """
+    <style>
+      div.stButton > button:first-child{
+        background-color: var(--primary-color);
+        color:#ffffff;
+      }
+      div.stButton > button:first-child:hover{
+        opacity:0.85;
+      }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+# ─── Grid of sliders + number inputs (responsive 2 × 2) ──────────────────────
 values = {}
 for row_start in range(0, len(FEATURES), 2):
-    left, right = st.columns(2, gap="large")
+    left, right = st.columns(2, gap="large")           # even 50 / 50 columns
     for col, cfg in zip((left, right), FEATURES[row_start : row_start + 2]):
         key, label, desc, vmin, vmax, step, default = cfg
         with col:
@@ -54,21 +69,22 @@ for row_start in range(0, len(FEATURES), 2):
                         unsafe_allow_html=True)
             st.caption(desc)
 
-            # slider for quick coarse choice
-            slider_val = st.slider(
-                label=" ", key=f"s_{key}",
-                min_value=vmin, max_value=vmax,
-                value=default, step=step
-            )
-            # number box for precise entry (defaults to slider position)
-            num_val = st.number_input(
-                label="Exact value",
-                key=f"n_{key}",
-                min_value=vmin, max_value=vmax,
-                value=slider_val, step=step,
-                format="%.4f" if step < 1 else "%d"
-            )
-            values[key] = num_val  # model will use the numeric input
+            # sub-columns: big slider | small number box
+            s_col, n_col = st.columns([3, 1])
+            with s_col:
+                slid_val = st.slider(
+                    label="", key=f"s_{key}",
+                    min_value=vmin, max_value=vmax,
+                    value=default, step=step, label_visibility="collapsed"
+                )
+            with n_col:
+                num_val = st.number_input(
+                    label="Exact", key=f"n_{key}",
+                    min_value=vmin, max_value=vmax,
+                    value=slid_val, step=step,
+                    format="%.4f" if step < 1 else "%d"
+                )
+            values[key] = num_val    # model uses the precise box value
 
     if row_start + 2 < len(FEATURES):
         st.markdown("<div style='height:1rem'></div>", unsafe_allow_html=True)
@@ -76,19 +92,19 @@ for row_start in range(0, len(FEATURES), 2):
 # ─── Prediction & probability explanation ───────────────────────────────────
 if st.button("Classify"):
     X = np.array([[values[k] for k, *_ in FEATURES]])
-    prob = pipe.predict_proba(X)[0, 1]     # P(malignant)
+    p = pipe.predict_proba(X)[0, 1]                    # P(malignant)
 
-    if prob >= 0.5:
-        st.markdown(f"⚠️ **Malignant** *(probability {prob:.1%})*")
+    if p >= 0.5:
+        st.markdown(f"⚠️ **Malignant** *(probability {p:.1%})*")
         st.info(
-            f"The model estimates a **{prob:.1%}** chance the tumour is malignant."
-            f"  About **{prob*100:.0f}** of 100 similar cases would be malignant."
+            f"The model estimates a **{p:.1%}** chance the tumour is malignant. "
+            f"Roughly **{p*100:.0f}** of 100 similar cases would be malignant."
         )
     else:
-        st.markdown(f"✅ **Benign** *(probability {1-prob:.1%})*")
+        st.markdown(f"✅ **Benign** *(probability {1-p:.1%})*")
         st.info(
-            f"The model estimates a **{1-prob:.1%}** chance the tumour is benign "
-            f"and **{prob:.1%}** malignant."
+            f"The model estimates a **{1-p:.1%}** chance the tumour is benign "
+            f"and **{p:.1%}** malignant."
         )
 
     st.caption("Model is for educational use only and does not replace professional medical advice.")
