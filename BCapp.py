@@ -3,22 +3,37 @@ import numpy as np
 import joblib
 from pathlib import Path
 
-# ─── Settings ────────────────────────────────────────────────────────────────
+# ─── Config ──────────────────────────────────────────────────────────────────
 MODEL_PATH = Path("breast_cancer_pipe.pkl")
 TEST_ACC   = 0.971
 
-# Dataset-wide average values for each feature
-AVG = {
-    "radius_mean":    14.127,    # mm
-    "texture_mean":   19.289,
-    "perimeter_mean": 91.969,    # mm
-    "area_mean":     654.889     # mm²
+# Dataset-wide means for slider defaults
+METRICS = {
+    "radius_mean": {
+        "label": "Mean radius (mm)",
+        "desc":  "Average distance from the nucleus center to the cell border.",
+        "min": 0.0,  "max": 50.0,   "step": 0.01,  "avg": 14.127,
+    },
+    "texture_mean": {
+        "label": "Mean texture",
+        "desc":  "Standard deviation of gray-scale values inside the nucleus—higher means more heterogeneity.",
+        "min": 0.0,  "max": 100.0,  "step": 0.01,  "avg": 19.289,
+    },
+    "perimeter_mean": {
+        "label": "Mean perimeter (mm)",
+        "desc":  "Average length of the nucleus outline; relates to size and complexity.",
+        "min": 0.0,  "max": 300.0,  "step": 0.01,  "avg": 91.969,
+    },
+    "area_mean": {
+        "label": "Mean area (mm²)",
+        "desc":  "Average two-dimensional area of the nucleus—larger areas indicate bigger nuclei.",
+        "min": 0.0,  "max": 2500.0, "step": 1.0,   "avg": 654.889,
+    },
 }
 
-# ─── Helper ──────────────────────────────────────────────────────────────────
 @st.cache_resource
-def load_model(path: Path):
-    return joblib.load(path)
+def load_model(p: Path):
+    return joblib.load(p)
 
 pipe = load_model(MODEL_PATH)
 
@@ -28,68 +43,35 @@ st.caption(f"Hold-out accuracy: {TEST_ACC:.1%}")
 
 st.subheader("Enter mean-value tumour metrics")
 
-c1, c2 = st.columns(2)
-
-# Radius
-c1.markdown(
-    "##### Mean radius (mm)\n"
-    "*Average distance from the nucleus center to the cell border. "
-    "Larger radii generally indicate larger nuclei.*"
-)
-radius_mean = c1.slider(
-    label=" ",  min_value=0.0, max_value=50.0,
-    value=AVG["radius_mean"], step=0.01, key="radius"
-)
-
-# Texture
-c2.markdown(
-    "##### Mean texture\n"
-    "*Standard deviation of gray-scale values inside the nucleus—"
-    "a roughness measure. Higher texture means more heterogeneous tissue.*"
-)
-texture_mean = c2.slider(
-    label=" ",  min_value=0.0, max_value=100.0,
-    value=AVG["texture_mean"], step=0.01, key="texture"
-)
-
-# Perimeter
-c1.markdown(
-    "##### Mean perimeter (mm)\n"
-    "*Average length of the nucleus outline. Related to size and shape complexity.*"
-)
-perimeter_mean = c1.slider(
-    label=" ",  min_value=0.0, max_value=300.0,
-    value=AVG["perimeter_mean"], step=0.01, key="perimeter"
-)
-
-# Area
-c2.markdown(
-    "##### Mean area (mm²)\n"
-    "*Average two-dimensional area of the nucleus. Larger areas indicate bigger nuclei.*"
-)
-area_mean = c2.slider(
-    label=" ",  min_value=0.0, max_value=2500.0,
-    value=AVG["area_mean"], step=1.0, key="area"
-)
+# Collect inputs vertically in the order defined above
+values = {}
+for key, cfg in METRICS.items():
+    st.markdown(f"**{cfg['label']}**")
+    st.caption(cfg["desc"])
+    values[key] = st.slider(
+        label="",  key=key,
+        min_value=cfg["min"], max_value=cfg["max"],
+        value=cfg["avg"], step=cfg["step"]
+    )
+    st.markdown("---")   # thin divider for even spacing
 
 # ─── Prediction & explanation ────────────────────────────────────────────────
 if st.button("Classify"):
-    X = np.array([[radius_mean, texture_mean, perimeter_mean, area_mean]])
-    prob = pipe.predict_proba(X)[0, 1]     # P(malignant)
+    X = np.array([[values[k] for k in METRICS]])
+    prob = pipe.predict_proba(X)[0, 1]          # P(malignant)
 
     if prob >= 0.5:
         st.markdown(f"⚠️ **Malignant** *(probability {prob:.1%})*")
         st.info(
-            "The model estimates a **{:.1%}** likelihood that the tumour is "
-            "malignant. In 100 similar cases, it would expect roughly **{:.0f}** "
-            "to be malignant.".format(prob, prob*100)
+            f"The model estimates a **{prob:.1%}** likelihood that the tumour "
+            "is malignant. In 100 similar cases, it would expect about "
+            f"**{prob*100:.0f}** to be malignant."
         )
     else:
         st.markdown(f"✅ **Benign** *(probability {1-prob:.1%})*")
         st.info(
-            "The model estimates a **{:.1%}** likelihood that the tumour is benign "
-            "and **{:.1%}** malignant. Lower malignant probability strengthens "
-            "confidence in a benign outcome.".format(1-prob, prob)
+            f"The model estimates a **{1-prob:.1%}** likelihood that the tumour "
+            "is benign and **{prob:.1%}** malignant."
         )
 
-    st.caption("Model is for educational use only and should not inform clinical decisions.")
+    st.caption("Model is for educational use only; it is not medical advice.")
