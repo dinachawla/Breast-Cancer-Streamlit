@@ -91,4 +91,32 @@ for row_start in range(0, len(FEATURES), 2):
                 )
             with n_col:
                 num_val = st.number_input(
-                    label="Exact",
+                    label="Exact", key=f"n_{key}",
+                    min_value=vmin, max_value=vmax,
+                    value=slid_val, step=step,
+                    format="%.4f" if step < 1 else "%.0f"
+                )
+            values[key] = num_val
+
+    if row_start + 2 < len(FEATURES):
+        st.markdown("<div style='height:1rem'></div>", unsafe_allow_html=True)
+
+# ─── Prediction & probability explanation ───────────────────────────────────
+if st.button("Classify"):
+    X = np.array([[values[k] for k, *_ in FEATURES]])
+    p = pipe.predict_proba(X)[0, 1]     # P(malignant)
+
+    if p >= 0.5:
+        st.markdown(f"⚠️ **Malignant** *(probability {p:.1%})*")
+        st.info(
+            f"The model estimates a **{p:.1%}** chance the tumour is malignant.  "
+            f"About **{p*100:.0f}** of 100 similar cases would be malignant."
+        )
+    else:
+        st.markdown(f"✅ **Benign** *(probability {1-p:.1%})*")
+        st.info(
+            f"The model estimates a **{1-p:.1%}** chance the tumour is benign "
+            f"and **{p:.1%}** malignant."
+        )
+
+    st.caption("Model is for educational use only and does not replace professional medical advice.")
