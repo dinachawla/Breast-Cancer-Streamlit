@@ -10,11 +10,11 @@ TEST_ACC   = 0.971            # hold-out accuracy
 # (key, label, description, min, max, slider_step, default)
 FEATURES = [
     ("radius_mean",    "Mean radius (mm)",
-     "Average distance from the nucleus center to the cell border.",
+     "Average distance from the nucleus centre to the cell border.",
      0.0, 50.0, 0.01, 14.127),
 
     ("texture_mean",   "Mean texture",
-     "Std-dev of grey-scale values inside the nucleus—higher means more heterogeneity.",
+     "Std-dev of greyscale values inside the nucleus—higher means more heterogeneity.",
      0.0, 100.0, 0.01, 19.289),
 
     ("perimeter_mean", "Mean perimeter (mm)",
@@ -28,8 +28,8 @@ FEATURES = [
 
 # ─── Load model once ─────────────────────────────────────────────────────────
 @st.cache_resource
-def load_model(path: Path):
-    return joblib.load(path)
+def load_model(p: Path):
+    return joblib.load(p)
 
 pipe = load_model(MODEL_PATH)
 
@@ -42,7 +42,7 @@ st.markdown(
 st.caption(f"Model hold-out accuracy: {TEST_ACC:.1%}")
 st.subheader("Enter mean-value tumour metrics")
 
-# ─── Custom CSS – color the Classify button like the sliders ────────────────
+# ─── Custom CSS – colour the Classify button like the sliders ────────────────
 st.markdown(
     """
     <style>
@@ -58,7 +58,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# ─── Grid of inputs ──────────────────────────────────────────────────────────
+# ─── Grid of sliders + number inputs ─────────────────────────────────────────
 values = {}
 for row_start in range(0, len(FEATURES), 2):
     left, right = st.columns(2, gap="large")
@@ -69,31 +69,24 @@ for row_start in range(0, len(FEATURES), 2):
                         unsafe_allow_html=True)
             st.caption(desc)
 
-            if key == "area_mean":
-                # ── Number box only (no slider) ───────────────────────────
-                values[key] = st.number_input(
-                    label="Exact value", key=f"n_{key}",
+            # slider + number box (with format chosen to avoid warnings)
+            s_col, n_col = st.columns([3, 1])
+            with s_col:
+                slid_val = st.slider(
+                    label="", key=f"s_{key}",
                     min_value=vmin, max_value=vmax,
-                    value=default, step=step, format="%d"
+                    value=default, step=step,
+                    label_visibility="collapsed"
                 )
-            else:
-                # ── Slider + number box pair ──────────────────────────────
-                s_col, n_col = st.columns([3, 1])
-                with s_col:
-                    slid_val = st.slider(
-                        label="", key=f"s_{key}",
-                        min_value=vmin, max_value=vmax,
-                        value=default, step=step,
-                        label_visibility="collapsed"
-                    )
-                with n_col:
-                    num_val = st.number_input(
-                        label="Exact", key=f"n_{key}",
-                        min_value=vmin, max_value=vmax,
-                        value=slid_val, step=step,
-                        format="%.4f" if step < 1 else "%d"
-                    )
-                values[key] = num_val
+            with n_col:
+                # Use float format for every metric; avoids the %d warning
+                num_val = st.number_input(
+                    label="Exact", key=f"n_{key}",
+                    min_value=vmin, max_value=vmax,
+                    value=slid_val, step=step,
+                    format="%.4f" if step < 1 else "%.0f"
+                )
+            values[key] = num_val
 
     if row_start + 2 < len(FEATURES):
         st.markdown("<div style='height:1rem'></div>", unsafe_allow_html=True)
