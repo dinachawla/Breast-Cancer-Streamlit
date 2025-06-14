@@ -5,7 +5,7 @@ from pathlib import Path
 
 # ─── Model & dataset settings ────────────────────────────────────────────────
 MODEL_PATH = Path("breast_cancer_pipe.pkl")
-TEST_ACC   = 0.971   # hold-out accuracy
+TEST_ACC   = 0.971
 
 # Slider configuration: (key, label, description, min, max, step, default)
 FEATURES = [
@@ -41,37 +41,40 @@ st.subheader("Enter mean-value tumour metrics")
 # ─── Grid of sliders (two columns, two rows) ─────────────────────────────────
 values = {}
 for row_start in range(0, len(FEATURES), 2):
-    left, right = st.columns(2, gap="large")          # even 50/50 columns
+    left, right = st.columns(2, gap="large")           # even 50/50 columns
     for col, cfg in zip((left, right), FEATURES[row_start:row_start + 2]):
         key, label, desc, minv, maxv, step, default = cfg
         with col:
-            # Bold, larger heading for each metric
             st.markdown(f"<h4 style='margin-bottom:0.2rem'>{label}</h4>",
                         unsafe_allow_html=True)
             st.caption(desc)
-            # An empty label keeps the slider tight under the caption
             values[key] = st.slider(
                 label=" ", key=key,
-                min_value=minv, max_value=maxv, value=default, step=step
+                min_value=minv, max_value=maxv,
+                value=default, step=step
             )
+
+    # add a subtle vertical spacer after each row except the last
+    if row_start + 2 < len(FEATURES):
+        st.markdown("<div style='height:1rem'></div>", unsafe_allow_html=True)
 
 # ─── Prediction & probability explanation ───────────────────────────────────
 if st.button("Classify"):
     X = np.array([[values[k] for k, *_ in FEATURES]])
-    prob_malignant = pipe.predict_proba(X)[0, 1]
+    prob = pipe.predict_proba(X)[0, 1]   # P(malignant)
 
-    if prob_malignant >= 0.5:
-        st.markdown(f"⚠️ **Malignant** *(probability {prob_malignant:.1%})*")
+    if prob >= 0.5:
+        st.markdown(f"⚠️ **Malignant** *(probability {prob:.1%})*")
         st.info(
-            f"The model estimates a **{prob_malignant:.1%}** likelihood that the "
-            "tumour is malignant. Out of 100 similar cases, about "
-            f"**{prob_malignant*100:.0f}** would be malignant."
+            f"The model estimates a **{prob:.1%}** likelihood that the tumour "
+            "is malignant. Out of 100 similar cases, about "
+            f"**{prob*100:.0f}** would be malignant."
         )
     else:
-        st.markdown(f"✅ **Benign** *(probability {1-prob_malignant:.1%})*")
+        st.markdown(f"✅ **Benign** *(probability {1-prob:.1%})*")
         st.info(
-            f"The model estimates a **{1-prob_malignant:.1%}** likelihood that the "
-            "tumour is benign and **{prob_malignant:.1%}** malignant."
+            f"The model estimates a **{1-prob:.1%}** likelihood that the tumour "
+            "is benign and **{prob:.1%}** malignant."
         )
 
     st.caption("Model is for educational use only; it is not a substitute for professional medical advice.")
