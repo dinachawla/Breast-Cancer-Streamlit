@@ -47,21 +47,21 @@ def load_model(path: Path):
 
 pipe = load_model(MODEL_PATH)
 
+# --- Safe Session Reset Implementation ---
+if "reset_flags" in st.session_state:
+    for key, value in st.session_state.reset_flags.items():
+        st.session_state[f"s_{key}"] = value
+        st.session_state[f"n_{key}"] = value
+    del st.session_state.reset_flags
+
 st.title("Breast Cancer ML Classifier 🩺")
 st.caption(f"Model hold-out accuracy: {TEST_ACC:.1%}")
 st.subheader("Adjust Tumor Characteristics")
 
 left_col, right_col = st.columns([1, 1], gap="large")
 
-values = {}
-
-def safe_reset(key, value):
-    if f"s_{key}" in st.session_state:
-        st.session_state[f"s_{key}"] = value
-    if f"n_{key}" in st.session_state:
-        st.session_state[f"n_{key}"] = value
-
 with left_col:
+    values = {}
     for group_title, feature_list in FEATURE_GROUPS.items():
         st.markdown(f"### {group_title}")
         if len(feature_list) == 2:
@@ -74,10 +74,12 @@ with left_col:
                     st.caption(desc)
                     avg_display = f"{avg:.4f}" if step < 1 else f"{avg:.0f}"
                     st.caption(f"*Population average: {avg_display}*")
-                    slider_val = st.slider("", key=f"s_{key}", min_value=vmin, max_value=vmax, value=avg, step=step, label_visibility="collapsed")
-                    num_val = st.number_input("Exact", key=f"n_{key}", min_value=vmin, max_value=vmax, value=slider_val, step=step, format="%.4f" if step < 1 else "%.0f")
+                    slider_val = st.slider(label="", key=f"s_{key}", min_value=vmin, max_value=vmax, value=avg, step=step, label_visibility="collapsed")
+                    num_val = st.number_input(label="Exact", key=f"n_{key}", min_value=vmin, max_value=vmax, value=slider_val, step=step, format="%.4f" if step < 1 else "%.0f")
                     if st.button(f"Reset {label}", key=f"reset_{key}"):
-                        safe_reset(key, avg)
+                        if "reset_flags" not in st.session_state:
+                            st.session_state.reset_flags = {}
+                        st.session_state.reset_flags[key] = avg
                     values[key] = num_val
         else:
             for cfg in feature_list:
@@ -86,10 +88,12 @@ with left_col:
                 st.caption(desc)
                 avg_display = f"{avg:.4f}" if step < 1 else f"{avg:.0f}"
                 st.caption(f"*Population average: {avg_display}*")
-                slider_val = st.slider("", key=f"s_{key}", min_value=vmin, max_value=vmax, value=avg, step=step, label_visibility="collapsed")
-                num_val = st.number_input("Exact", key=f"n_{key}", min_value=vmin, max_value=vmax, value=slider_val, step=step, format="%.4f" if step < 1 else "%.0f")
+                slider_val = st.slider(label="", key=f"s_{key}", min_value=vmin, max_value=vmax, value=avg, step=step, label_visibility="collapsed")
+                num_val = st.number_input(label="Exact", key=f"n_{key}", min_value=vmin, max_value=vmax, value=slider_val, step=step, format="%.4f" if step < 1 else "%.0f")
                 if st.button(f"Reset {label}", key=f"reset_{key}"):
-                    safe_reset(key, avg)
+                    if "reset_flags" not in st.session_state:
+                        st.session_state.reset_flags = {}
+                    st.session_state.reset_flags[key] = avg
                 values[key] = num_val
 
 with right_col:
