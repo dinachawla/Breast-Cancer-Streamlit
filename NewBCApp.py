@@ -48,9 +48,9 @@ def sync_slider(key):
 def sync_number_input(key):
     st.session_state[f"n_{key}"] = st.session_state[f"s_{key}"]
 
-def reset_values(key, avg):
-    st.session_state[f"s_{key}"] = avg
-    st.session_state[f"n_{key}"] = avg
+# Initialize reset queue
+if "reset_keys" not in st.session_state:
+    st.session_state["reset_keys"] = []
 
 # App UI
 st.title("Breast Cancer ML Classifier 🩺")
@@ -90,7 +90,7 @@ with left_col:
                     )
 
                     if st.button(f"Reset {key.title()}", key=f"reset_{key}"):
-                        reset_values(key, avg)
+                        st.session_state["reset_keys"].append((key, avg))
 
                     values[key] = st.session_state[f"n_{key}"]
         else:
@@ -118,9 +118,15 @@ with left_col:
                 )
 
                 if st.button(f"Reset {key.title()}", key=f"reset_{key}"):
-                    reset_values(key, avg)
+                    st.session_state["reset_keys"].append((key, avg))
 
                 values[key] = st.session_state[f"n_{key}"]
+
+# Perform resets AFTER rendering widgets
+for key, avg in st.session_state["reset_keys"]:
+    st.session_state[f"s_{key}"] = avg
+    st.session_state[f"n_{key}"] = avg
+st.session_state["reset_keys"] = []
 
 with right_col:
     st.subheader("Feature-Level Malignancy Likelihood")
