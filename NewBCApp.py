@@ -59,31 +59,29 @@ left_col, right_col = st.columns([2, 3], gap="large")
 values = {}
 with left_col:
     st.subheader("Adjust tumour characteristics")
-    for group_title, feature_list in FEATURE_GROUPS.items():
-        st.markdown(f"### {group_title}")
-
-        if len(feature_list) == 1:
-            cfg = feature_list[0]
-            key, label, desc, vmin, vmax, step, avg = cfg
-
-            st.markdown(f"<h4 style='margin-bottom:0.2rem'>{label}</h4>", unsafe_allow_html=True)
-            st.caption(desc)
-            avg_display = f"{avg:.4f}" if step < 1 else f"{avg:.0f}"
-            st.caption(f"*Population average: {avg_display}*")
-
-            slider_val = st.slider(label=f"{label}", key=f"s_{key}", min_value=vmin, max_value=vmax,
-                                   value=avg, step=step)
-            values[key] = slider_val
-
-        else:
-            for cfg in feature_list:
-                key, label, desc, vmin, vmax, step, avg = cfg
-                with st.container():
+    with st.container(border=True, height=650):
+        for group_title, feature_list in FEATURE_GROUPS.items():
+            st.markdown(f"### {group_title}")
+            if len(feature_list) == 2:
+                f1, f2 = feature_list
+                col1, col2 = st.columns(2, gap="medium")
+                for col, cfg in zip((col1, col2), (f1, f2)):
+                    key, label, desc, vmin, vmax, step, avg = cfg
+                    with col:
+                        st.markdown(f"<h4 style='margin-bottom:0.2rem'>{label}</h4>", unsafe_allow_html=True)
+                        st.caption(desc)
+                        avg_display = f"{avg:.4f}" if step < 1 else f"{avg:.0f}"
+                        st.caption(f"*Population average: {avg_display}*")
+                        slider_val = st.slider(label=f"{label}", key=f"s_{key}", min_value=vmin, max_value=vmax,
+                                               value=avg, step=step)
+                        values[key] = slider_val
+            else:
+                for cfg in feature_list:
+                    key, label, desc, vmin, vmax, step, avg = cfg
                     st.markdown(f"<h4 style='margin-bottom:0.2rem'>{label}</h4>", unsafe_allow_html=True)
                     st.caption(desc)
                     avg_display = f"{avg:.4f}" if step < 1 else f"{avg:.0f}"
                     st.caption(f"*Population average: {avg_display}*")
-
                     slider_val = st.slider(label=f"{label}", key=f"s_{key}", min_value=vmin, max_value=vmax,
                                            value=avg, step=step)
                     values[key] = slider_val
