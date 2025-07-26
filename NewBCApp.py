@@ -5,7 +5,7 @@ from pathlib import Path
 
 # ──────────────────────────  Model & settings  ───────────────────────────────
 MODEL_PATH = Path("breast_cancer_pipe_updated.pkl")
-TEST_ACC   = 0.971   # hold-out accuracy
+TEST_ACC   = 0.965   # hold-out accuracy
 
 # (key, label, description, min, max, slider_step, population_mean)
 FEATURES = [
@@ -100,7 +100,8 @@ for row_start in range(0, len(FEATURES), 2):
             st.markdown(f"<h4 style='margin-bottom:0.2rem'>{label}</h4>",
                         unsafe_allow_html=True)
             st.caption(desc)
-            st.caption(f"*Population average: {avg:.4f if step < 1 else avg:.0f}*")
+            avg_display = f"{avg:.4f}" if step < 1 else f"{avg:.0f}"
+            st.caption(f"*Population average: {avg_display}*")
 
             s_col, n_col = st.columns([3, 1])
             with s_col:
