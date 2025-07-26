@@ -49,33 +49,37 @@ pipe = load_model(MODEL_PATH)
 
 st.markdown("""
 <style>
-.container {
+.main-container {
   display: flex;
-  gap: 2rem;
+  flex-direction: row;
+  justify-content: space-between;
   align-items: flex-start;
+  gap: 2rem;
 }
-.left-panel {
-  width: 50%;
+.left-column {
+  flex: 1;
+  max-width: 50%;
   overflow-y: auto;
-  padding-right: 1rem;
 }
-.right-panel {
-  width: 50%;
+.right-column {
+  flex: 1;
+  max-width: 50%;
   position: -webkit-sticky;
   position: sticky;
   top: 1rem;
+  align-self: flex-start;
   background-color: #fafafa;
-  padding: 1rem;
+  padding: 1.5rem;
   border-radius: 10px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+  z-index: 5;
 }
 </style>
+<div class="main-container">
 """, unsafe_allow_html=True)
 
-st.markdown("<div class='container'>", unsafe_allow_html=True)
-
-# Left panel: Inputs
-st.markdown("<div class='left-panel'>", unsafe_allow_html=True)
+# LEFT SIDE
+st.markdown("<div class='left-column'>", unsafe_allow_html=True)
 st.title("Breast Cancer ML Classifier 🩺")
 st.caption(f"Model hold-out accuracy: {TEST_ACC:.1%}")
 st.subheader("Adjust Tumor Characteristics")
@@ -108,8 +112,8 @@ for group_title, feature_list in FEATURE_GROUPS.items():
             values[key] = slider_val
 st.markdown("</div>", unsafe_allow_html=True)
 
-# Right panel: Sticky results
-st.markdown("<div class='right-panel'>", unsafe_allow_html=True)
+# RIGHT SIDE
+st.markdown("<div class='right-column'>", unsafe_allow_html=True)
 st.subheader("Feature-Level Malignancy Likelihood")
 
 user_input_dict = {k: v for k, v in values.items()}
