@@ -78,7 +78,7 @@ with left_col:
     values = {}
     for group_title, keys in FEATURE_GROUPS.items():
         st.markdown(f"### {group_title}")
-        cols = st.columns(len(keys)) if len(keys) == 2 else [st]
+        cols = st.columns(len(keys))  # Always safe, even if just one
         for col, key in zip(cols, keys):
             with col:
                 low, high, step, avg = percentile_bounds[key]
