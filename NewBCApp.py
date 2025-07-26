@@ -1,3 +1,4 @@
+
 import streamlit as st
 import numpy as np
 import pandas as pd
@@ -15,31 +16,7 @@ data = load_breast_cancer()
 df = pd.DataFrame(data.data, columns=data.feature_names)
 df['target'] = data.target
 
-FEATURE_GROUPS = {
-    "Radius (mm)": [
-        ("mean radius", "Mean radius", "Average nucleus distance to edge", 0.0, 50.0, 0.01, 14.127),
-        ("worst radius", "Worst radius", "Maximum radius observed", 7.9, 36.0, 0.1, 16.27),
-    ],
-    "Perimeter (mm)": [
-        ("mean perimeter", "Mean perimeter", "Average nucleus perimeter", 0.0, 300.0, 0.01, 91.969),
-        ("worst perimeter", "Worst perimeter", "Maximum perimeter observed", 50.4, 251.2, 0.1, 107.3),
-    ],
-    "Area (mm²)": [
-        ("mean area", "Mean area", "Average 2D tumor area", 0.0, 2500.0, 1.0, 654.889),
-        ("worst area", "Worst area", "Maximum 2D tumor area", 185.2, 4254.0, 1.0, 880.6),
-    ],
-    "Concavity": [
-        ("mean concavity", "Mean concavity", "Average inward curve depth", 0.0, 0.4268, 0.001, 0.0888),
-        ("worst concavity", "Worst concavity", "Maximum inward curve depth", 0.0, 1.2520, 0.001, 0.2722),
-    ],
-    "Concave Points": [
-        ("mean concave points", "Mean concave points", "Average edge indentations", 0.0, 0.2012, 0.001, 0.0489),
-        ("worst concave points", "Worst concave points", "Maximum edge indentations", 0.0, 0.2910, 0.001, 0.1146),
-    ],
-    "Texture": [
-        ("mean texture", "Mean texture", "Std-dev of gray values in nucleus", 0.0, 100.0, 0.01, 19.289),
-    ]
-}
+FEATURE_GROUPS = {'Radius (mm)': [('mean radius', 'Mean radius', 'Average nucleus distance to edge', 9.5292, 20.576, 0.01, 14.127), ('worst radius', 'Worst radius', 'Maximum radius observed', 10.534, 25.64, 0.1, 16.27)], 'Perimeter (mm)': [('mean perimeter', 'Mean perimeter', 'Average nucleus perimeter', 60.496, 135.82, 0.01, 91.969), ('worst perimeter', 'Worst perimeter', 'Maximum perimeter observed', 67.856, 171.64, 0.1, 107.3)], 'Area (mm²)': [('mean area', 'Mean area', 'Average 2D tumor area', 275.78, 1309.8, 1.0, 654.889), ('worst area', 'Worst area', 'Maximum 2D tumor area', 331.06, 2009.6, 1.0, 880.6)], 'Concavity': [('mean concavity', 'Mean concavity', 'Average inward curve depth', 0.005, 0.243, 0.001, 0.0888), ('worst concavity', 'Worst concavity', 'Maximum inward curve depth', 0.0184, 0.6824, 0.001, 0.2722)], 'Concave Points': [('mean concave points', 'Mean concave points', 'Average edge indentations', 0.0056, 0.1257, 0.001, 0.0489), ('worst concave points', 'Worst concave points', 'Maximum edge indentations', 0.0243, 0.2369, 0.001, 0.1146)], 'Texture': [('mean texture', 'Mean texture', 'Std-dev of gray values in nucleus', 13.088, 27.15, 0.01, 19.289)]}
 
 @st.cache_resource
 def load_model(path: Path):
@@ -47,24 +24,17 @@ def load_model(path: Path):
 
 pipe = load_model(MODEL_PATH)
 
-# Fix for glitch + error in reset button
-def safe_reset(key, avg):
-    try:
-        if f"s_{key}" in st.session_state:
-            del st.session_state[f"s_{key}"]
-        if f"n_{key}" in st.session_state:
-            del st.session_state[f"n_{key}"]
-        st.session_state[f"s_{key}"] = avg
-        st.session_state[f"n_{key}"] = avg
-        st.rerun()
-    except Exception as e:
-        st.warning(f"⚠️ Reset failed: {e}")
-
 st.title("Breast Cancer ML Classifier 🩺")
 st.caption(f"Model hold-out accuracy: {TEST_ACC:.1%}")
 st.subheader("Adjust Tumor Characteristics")
 
 left_col, right_col = st.columns([1, 1], gap="large")
+
+def safe_reset(key, value):
+    if f"s_{key}" in st.session_state:
+        st.session_state[f"s_{key}"] = value
+    if f"n_{key}" in st.session_state:
+        st.session_state[f"n_{key}"] = value
 
 with left_col:
     values = {}
@@ -81,7 +51,7 @@ with left_col:
                     avg_display = f"{avg:.4f}" if step < 1 else f"{avg:.0f}"
                     st.caption(f"*Population average: {avg_display}*")
                     slider_val = st.slider(label="", key=f"s_{key}", min_value=vmin, max_value=vmax, value=avg, step=step, label_visibility="collapsed")
-                    num_val = st.number_input(label="Exact", key=f"n_{key}", min_value=vmin, max_value=vmax, value=slider_val, step=step, format="%.4f" if step < 1 else "%.0f")
+                    num_val = st.number_input(label="Exact", key=f"n_{key}", min_value=vmin, max_value=vmax, value=slider_val, step=step, format="{:.4f}" if step < 1 else "{:.0f}")
                     if st.button(f"Reset {label}", key=f"reset_{key}"):
                         safe_reset(key, avg)
                     values[key] = num_val
@@ -93,7 +63,7 @@ with left_col:
                 avg_display = f"{avg:.4f}" if step < 1 else f"{avg:.0f}"
                 st.caption(f"*Population average: {avg_display}*")
                 slider_val = st.slider(label="", key=f"s_{key}", min_value=vmin, max_value=vmax, value=avg, step=step, label_visibility="collapsed")
-                num_val = st.number_input(label="Exact", key=f"n_{key}", min_value=vmin, max_value=vmax, value=slider_val, step=step, format="%.4f" if step < 1 else "%.0f")
+                num_val = st.number_input(label="Exact", key=f"n_{key}", min_value=vmin, max_value=vmax, value=slider_val, step=step, format="{:.4f}" if step < 1 else "{:.0f}")
                 if st.button(f"Reset {label}", key=f"reset_{key}"):
                     safe_reset(key, avg)
                 values[key] = num_val
