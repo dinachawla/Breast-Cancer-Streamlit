@@ -67,9 +67,12 @@ with left_col:
                     st.caption(desc)
                     avg_display = f"{avg:.4f}" if step < 1 else f"{avg:.0f}"
                     st.caption(f"*Population average: {avg_display}*")
-                    slider_val = st.slider(label=f"{label}", key=f"s_{key}", min_value=vmin, max_value=vmax,
-                                           value=avg, step=step)
-                    values[key] = slider_val
+                    slider_val = st.slider(label="", key=f"s_{key}", min_value=vmin, max_value=vmax, value=avg, step=step, label_visibility="collapsed")
+                    num_val = st.number_input(label="Exact", key=f"n_{key}", min_value=vmin, max_value=vmax, value=slider_val, step=step, format="%.4f" if step < 1 else "%.0f")
+                    if st.button(f"Reset {label}", key=f"reset_{key}"):
+                        st.session_state[f"s_{key}"] = avg
+                        st.session_state[f"n_{key}"] = avg
+                    values[key] = num_val
         else:
             for cfg in feature_list:
                 key, label, desc, vmin, vmax, step, avg = cfg
@@ -77,9 +80,12 @@ with left_col:
                 st.caption(desc)
                 avg_display = f"{avg:.4f}" if step < 1 else f"{avg:.0f}"
                 st.caption(f"*Population average: {avg_display}*")
-                slider_val = st.slider(label=f"{label}", key=f"s_{key}", min_value=vmin, max_value=vmax,
-                                       value=avg, step=step)
-                values[key] = slider_val
+                slider_val = st.slider(label="", key=f"s_{key}", min_value=vmin, max_value=vmax, value=avg, step=step, label_visibility="collapsed")
+                num_val = st.number_input(label="Exact", key=f"n_{key}", min_value=vmin, max_value=vmax, value=slider_val, step=step, format="%.4f" if step < 1 else "%.0f")
+                if st.button(f"Reset {label}", key=f"reset_{key}"):
+                    st.session_state[f"s_{key}"] = avg
+                    st.session_state[f"n_{key}"] = avg
+                values[key] = num_val
 
 with right_col:
     st.subheader("Feature-Level Malignancy Likelihood")
