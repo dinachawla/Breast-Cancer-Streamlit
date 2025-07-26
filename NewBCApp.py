@@ -4,7 +4,7 @@ import joblib
 from pathlib import Path
 
 # ──────────────────────────  Model & settings  ───────────────────────────────
-MODEL_PATH = Path("breast_cancer_pipe.pkl")
+MODEL_PATH = Path("breast_cancer_pipe_updated.pkl")
 TEST_ACC   = 0.971   # hold-out accuracy
 
 # (key, label, description, min, max, slider_step, population_mean)
