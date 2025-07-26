@@ -7,6 +7,8 @@ from pathlib import Path
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.datasets import load_breast_cancer
 
+st.set_page_config(layout="wide")
+
 # ──────────────────────────  Model & settings  ───────────────────────────────
 MODEL_PATH = Path("breast_cancer_pipe_updated.pkl")
 TEST_ACC   = 0.965   # hold-out accuracy
@@ -50,8 +52,6 @@ def load_model(path: Path):
 pipe = load_model(MODEL_PATH)
 
 # ─────────────────────────────  Page layout  ─────────────────────────────────
-st.set_page_config(layout="wide")
-
 st.title("Breast Cancer ML Classifier 🩺")
 st.caption(f"Model hold-out accuracy: {TEST_ACC:.1%}")
 
