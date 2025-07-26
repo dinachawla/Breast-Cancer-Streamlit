@@ -1,4 +1,3 @@
-
 import streamlit as st
 import numpy as np
 import pandas as pd
@@ -15,8 +14,38 @@ TEST_ACC = 0.965
 data = load_breast_cancer()
 df = pd.DataFrame(data.data, columns=data.feature_names)
 df['target'] = data.target
+percentiles = df.describe(percentiles=[.05, .95]).T
 
-FEATURE_GROUPS = {'Radius (mm)': [('mean radius', 'Mean radius', 'Average nucleus distance to edge', 9.5292, 20.576, 0.01, 14.127), ('worst radius', 'Worst radius', 'Maximum radius observed', 10.534, 25.64, 0.1, 16.27)], 'Perimeter (mm)': [('mean perimeter', 'Mean perimeter', 'Average nucleus perimeter', 60.496, 135.82, 0.01, 91.969), ('worst perimeter', 'Worst perimeter', 'Maximum perimeter observed', 67.856, 171.64, 0.1, 107.3)], 'Area (mm²)': [('mean area', 'Mean area', 'Average 2D tumor area', 275.78, 1309.8, 1.0, 654.889), ('worst area', 'Worst area', 'Maximum 2D tumor area', 331.06, 2009.6, 1.0, 880.6)], 'Concavity': [('mean concavity', 'Mean concavity', 'Average inward curve depth', 0.005, 0.243, 0.001, 0.0888), ('worst concavity', 'Worst concavity', 'Maximum inward curve depth', 0.0184, 0.6824, 0.001, 0.2722)], 'Concave Points': [('mean concave points', 'Mean concave points', 'Average edge indentations', 0.0056, 0.1257, 0.001, 0.0489), ('worst concave points', 'Worst concave points', 'Maximum edge indentations', 0.0243, 0.2369, 0.001, 0.1146)], 'Texture': [('mean texture', 'Mean texture', 'Std-dev of gray values in nucleus', 13.088, 27.15, 0.01, 19.289)]}
+FEATURE_GROUPS = {
+    "Radius (mm)": [
+        ("mean radius", "Mean radius", "Average nucleus distance to edge", 0.01, 14.127),
+        ("worst radius", "Worst radius", "Maximum radius observed", 0.1, 16.27),
+    ],
+    "Perimeter (mm)": [
+        ("mean perimeter", "Mean perimeter", "Average nucleus perimeter", 0.01, 91.969),
+        ("worst perimeter", "Worst perimeter", "Maximum perimeter observed", 0.1, 107.3),
+    ],
+    "Area (mm²)": [
+        ("mean area", "Mean area", "Average 2D tumor area", 1.0, 654.889),
+        ("worst area", "Worst area", "Maximum 2D tumor area", 1.0, 880.6),
+    ],
+    "Concavity": [
+        ("mean concavity", "Mean concavity", "Average inward curve depth", 0.001, 0.0888),
+        ("worst concavity", "Worst concavity", "Maximum inward curve depth", 0.001, 0.2722),
+    ],
+    "Concave Points": [
+        ("mean concave points", "Mean concave points", "Average edge indentations", 0.001, 0.0489),
+        ("worst concave points", "Worst concave points", "Maximum edge indentations", 0.001, 0.1146),
+    ],
+    "Texture": [
+        ("mean texture", "Mean texture", "Std-dev of gray values in nucleus", 0.01, 19.289),
+    ]
+}
+
+def get_bounds(feature_name):
+    lower = percentiles.loc[feature_name]["5%"]
+    upper = percentiles.loc[feature_name]["95%"]
+    return lower, upper
 
 @st.cache_resource
 def load_model(path: Path):
@@ -30,12 +59,6 @@ st.subheader("Adjust Tumor Characteristics")
 
 left_col, right_col = st.columns([1, 1], gap="large")
 
-def safe_reset(key, value):
-    if f"s_{key}" in st.session_state:
-        st.session_state[f"s_{key}"] = value
-    if f"n_{key}" in st.session_state:
-        st.session_state[f"n_{key}"] = value
-
 with left_col:
     values = {}
     for group_title, feature_list in FEATURE_GROUPS.items():
@@ -44,28 +67,34 @@ with left_col:
             f1, f2 = feature_list
             col1, col2 = st.columns(2, gap="medium")
             for col, cfg in zip((col1, col2), (f1, f2)):
-                key, label, desc, vmin, vmax, step, avg = cfg
+                key, label, desc, step, avg = cfg
+                vmin, vmax = get_bounds(key)
                 with col:
                     st.markdown(f"<h4 style='margin-bottom:0.2rem'>{label}</h4>", unsafe_allow_html=True)
                     st.caption(desc)
                     avg_display = f"{avg:.4f}" if step < 1 else f"{avg:.0f}"
                     st.caption(f"*Population average: {avg_display}*")
                     slider_val = st.slider(label="", key=f"s_{key}", min_value=vmin, max_value=vmax, value=avg, step=step, label_visibility="collapsed")
-                    num_val = st.number_input(label="Exact", key=f"n_{key}", min_value=vmin, max_value=vmax, value=slider_val, step=step, format="{:.4f}" if step < 1 else "{:.0f}")
+                    safe_val = min(max(slider_val, vmin), vmax)
+                    num_val = st.number_input(label="Exact", key=f"n_{key}", min_value=vmin, max_value=vmax, value=safe_val, step=step, format="%.4f" if step < 1 else "%.0f")
                     if st.button(f"Reset {label}", key=f"reset_{key}"):
-                        safe_reset(key, avg)
+                        st.session_state[f"s_{key}"] = avg
+                        st.session_state[f"n_{key}"] = avg
                     values[key] = num_val
         else:
             for cfg in feature_list:
-                key, label, desc, vmin, vmax, step, avg = cfg
+                key, label, desc, step, avg = cfg
+                vmin, vmax = get_bounds(key)
                 st.markdown(f"<h4 style='margin-bottom:0.2rem'>{label}</h4>", unsafe_allow_html=True)
                 st.caption(desc)
                 avg_display = f"{avg:.4f}" if step < 1 else f"{avg:.0f}"
                 st.caption(f"*Population average: {avg_display}*")
                 slider_val = st.slider(label="", key=f"s_{key}", min_value=vmin, max_value=vmax, value=avg, step=step, label_visibility="collapsed")
-                num_val = st.number_input(label="Exact", key=f"n_{key}", min_value=vmin, max_value=vmax, value=slider_val, step=step, format="{:.4f}" if step < 1 else "{:.0f}")
+                safe_val = min(max(slider_val, vmin), vmax)
+                num_val = st.number_input(label="Exact", key=f"n_{key}", min_value=vmin, max_value=vmax, value=safe_val, step=step, format="%.4f" if step < 1 else "%.0f")
                 if st.button(f"Reset {label}", key=f"reset_{key}"):
-                    safe_reset(key, avg)
+                    st.session_state[f"s_{key}"] = avg
+                    st.session_state[f"n_{key}"] = avg
                 values[key] = num_val
 
 with right_col:
