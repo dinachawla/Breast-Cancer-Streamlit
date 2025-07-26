@@ -1,24 +1,33 @@
 import streamlit as st
 import numpy as np
+import pandas as pd
 import joblib
+import plotly.graph_objects as go
 from pathlib import Path
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.datasets import load_breast_cancer
 
 # ──────────────────────────  Model & settings  ───────────────────────────────
 MODEL_PATH = Path("breast_cancer_pipe_updated.pkl")
 TEST_ACC   = 0.965   # hold-out accuracy
 
+# Load breast cancer dataset for reference profiles
+data = load_breast_cancer()
+df = pd.DataFrame(data.data, columns=data.feature_names)
+df['target'] = data.target
+
 # Grouped input structure for paired comparison layout
 FEATURE_GROUPS = {
     "Radius (mm)": [
-        ("radius_mean", "Mean radius", "Average nucleus distance to edge", 0.0, 50.0, 0.01, 14.127),
+        ("mean radius", "Mean radius", "Average nucleus distance to edge", 0.0, 50.0, 0.01, 14.127),
         ("worst radius", "Worst radius", "Maximum radius observed", 7.9, 36.0, 0.1, 16.27),
     ],
     "Perimeter (mm)": [
-        ("perimeter_mean", "Mean perimeter", "Average nucleus perimeter", 0.0, 300.0, 0.01, 91.969),
+        ("mean perimeter", "Mean perimeter", "Average nucleus perimeter", 0.0, 300.0, 0.01, 91.969),
         ("worst perimeter", "Worst perimeter", "Maximum perimeter observed", 50.4, 251.2, 0.1, 107.3),
     ],
     "Area (mm²)": [
-        ("area_mean", "Mean area", "Average 2D tumor area", 0.0, 2500.0, 1.0, 654.889),
+        ("mean area", "Mean area", "Average 2D tumor area", 0.0, 2500.0, 1.0, 654.889),
         ("worst area", "Worst area", "Maximum 2D tumor area", 185.2, 4254.0, 1.0, 880.6),
     ],
     "Concavity": [
@@ -30,7 +39,7 @@ FEATURE_GROUPS = {
         ("worst concave points", "Worst concave points", "Maximum edge indentations", 0.0, 0.2910, 0.001, 0.1146),
     ],
     "Texture": [
-        ("texture_mean", "Mean texture", "Std-dev of gray values in nucleus", 0.0, 100.0, 0.01, 19.289),
+        ("mean texture", "Mean texture", "Std-dev of gray values in nucleus", 0.0, 100.0, 0.01, 19.289),
     ]
 }
 
@@ -48,27 +57,6 @@ st.markdown(
 )
 st.caption(f"Model hold-out accuracy: {TEST_ACC:.1%}")
 st.subheader("Adjust tumour characteristics")
-
-# ───────────────────  Global accent & button styling (CSS)  ──────────────────
-st.markdown(
-    """
-    <style>
-      :root { --primary-color:#d7263d; }
-      div.stButton > button:first-child{
-        background-color:var(--primary-color);
-        border-color:var(--primary-color);
-        color:#fff;
-        width:100%;
-        font-size:1.1rem;
-        font-weight:600;
-        padding:0.6em 1.2em;
-        border-radius:8px;
-      }
-      div.stButton > button:first-child:hover{ opacity:0.9; }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
 
 # ────────────────────────  Input pairs by feature group  ─────────────────────
 values = {}
@@ -108,7 +96,7 @@ for group_title, feature_list in FEATURE_GROUPS.items():
 # Spacer before button
 st.markdown("<div style='height:2rem'></div>", unsafe_allow_html=True)
 
-# ───────────────  Prediction & distinct result banner  ───────────────────────
+# ───────────────  Prediction & radar plot  ───────────────────────
 if st.button("Classify"):
     st.markdown("<div style='height:2rem'></div>", unsafe_allow_html=True)
 
@@ -131,7 +119,27 @@ if st.button("Classify"):
             icon="✅",
         )
 
-    st.caption(
-        "Model is for educational use only and **does not replace professional "
-        "medical advice.**"
+    # Radar Chart
+    selected_features = ordered_keys
+    benign_profile = df[df['target'] == 1][selected_features].mean()
+    malignant_profile = df[df['target'] == 0][selected_features].mean()
+
+    scaler = MinMaxScaler()
+    scaled = scaler.fit_transform([benign_profile, malignant_profile, X[0]])
+    benign_scaled, malignant_scaled, user_scaled = scaled
+
+    labels = [f.replace('mean ', 'Mean ').replace('worst ', 'Worst ').replace('_', ' ') for f in selected_features]
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatterpolar(r=benign_scaled, theta=labels, name='Benign Avg', line=dict(color='green')))
+    fig.add_trace(go.Scatterpolar(r=malignant_scaled, theta=labels, name='Malignant Avg', line=dict(color='red')))
+    fig.add_trace(go.Scatterpolar(r=user_scaled, theta=labels, name='Your Input', line=dict(color='blue')))
+
+    fig.update_layout(
+        title="Tumour Feature Comparison (Normalized)",
+        polar=dict(radialaxis=dict(visible=True, range=[0, 1])),
+        showlegend=True
     )
+
+    st.plotly_chart(fig)
+    st.caption("Model is for educational use only and **does not replace professional medical advice.**")
