@@ -4,21 +4,20 @@ import pandas as pd
 import joblib
 import plotly.graph_objects as go
 from pathlib import Path
-from sklearn.preprocessing import MinMaxScaler
 from sklearn.datasets import load_breast_cancer
 
 st.set_page_config(layout="wide")
 
 # ──────────────────────────  Model & settings  ───────────────────────────────
 MODEL_PATH = Path("breast_cancer_pipe_updated.pkl")
-TEST_ACC   = 0.965   # hold-out accuracy
+TEST_ACC   = 0.965
 
 # Load breast cancer dataset for reference profiles
 data = load_breast_cancer()
 df = pd.DataFrame(data.data, columns=data.feature_names)
 df['target'] = data.target
 
-# Grouped input structure for paired comparison layout
+# Grouped input structure
 FEATURE_GROUPS = {
     "Radius (mm)": [
         ("mean radius", "Mean radius", "Average nucleus distance to edge", 0.0, 50.0, 0.01, 14.127),
@@ -57,44 +56,41 @@ st.caption(f"Model hold-out accuracy: {TEST_ACC:.1%}")
 
 left_col, right_col = st.columns([2, 3], gap="large")
 
-# ────────────────────────  Input sliders on left  ───────────────────────────
 values = {}
 with left_col:
     st.subheader("Adjust tumour characteristics")
     for group_title, feature_list in FEATURE_GROUPS.items():
         st.markdown(f"### {group_title}")
         if len(feature_list) == 1:
-            feature_list = [feature_list[0], None]
-
-        left, right = st.columns(2, gap="large")
-        for col, cfg in zip((left, right), feature_list):
-            if cfg is None:
-                continue
+            # Single input
+            cfg = feature_list[0]
             key, label, desc, vmin, vmax, step, avg = cfg
-            with col:
-                st.markdown(f"<h4 style='margin-bottom:0.2rem'>{label}</h4>", unsafe_allow_html=True)
-                st.caption(desc)
-                avg_display = f"{avg:.4f}" if step < 1 else f"{avg:.0f}"
-                st.caption(f"*Population average: {avg_display}*")
+            st.markdown(f"<h4 style='margin-bottom:0.2rem'>{label}</h4>", unsafe_allow_html=True)
+            st.caption(desc)
+            avg_display = f"{avg:.4f}" if step < 1 else f"{avg:.0f}"
+            st.caption(f"*Population average: {avg_display}*")
+            s_col, n_col = st.columns([3, 1])
+            slid_val = s_col.slider(label="", key=f"s_{key}", min_value=vmin, max_value=vmax,
+                                    value=avg, step=step, label_visibility="collapsed")
+            num_val = n_col.number_input(label="Exact", key=f"n_{key}", min_value=vmin, max_value=vmax,
+                                         value=slid_val, step=step, format="%.4f" if step < 1 else "%.0f")
+            values[key] = num_val
+        else:
+            left, right = st.columns(2, gap="large")
+            for col, cfg in zip((left, right), feature_list):
+                key, label, desc, vmin, vmax, step, avg = cfg
+                with col:
+                    st.markdown(f"<h4 style='margin-bottom:0.2rem'>{label}</h4>", unsafe_allow_html=True)
+                    st.caption(desc)
+                    avg_display = f"{avg:.4f}" if step < 1 else f"{avg:.0f}"
+                    st.caption(f"*Population average: {avg_display}*")
+                    s_col, n_col = st.columns([3, 1])
+                    slid_val = s_col.slider(label="", key=f"s_{key}", min_value=vmin, max_value=vmax,
+                                            value=avg, step=step, label_visibility="collapsed")
+                    num_val = n_col.number_input(label="Exact", key=f"n_{key}", min_value=vmin, max_value=vmax,
+                                                 value=slid_val, step=step, format="%.4f" if step < 1 else "%.0f")
+                    values[key] = num_val
 
-                s_col, n_col = st.columns([3, 1])
-                with s_col:
-                    slid_val = st.slider(
-                        label="", key=f"s_{key}",
-                        min_value=vmin, max_value=vmax,
-                        value=avg, step=step,
-                        label_visibility="collapsed"
-                    )
-                with n_col:
-                    num_val = st.number_input(
-                        label="Exact", key=f"n_{key}",
-                        min_value=vmin, max_value=vmax,
-                        value=slid_val, step=step,
-                        format="%.4f" if step < 1 else "%.0f"
-                    )
-                values[key] = num_val
-
-# ───────────────  Graph and classifier on right  ────────────────────────────
 with right_col:
     st.subheader("Feature-Level Malignancy Likelihood")
 
@@ -134,11 +130,10 @@ with right_col:
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    # ───────────────  Real-time Prediction Result  ───────────────────────────
     st.subheader("Diagnosis Estimate")
     ordered_keys = [f[0] for group in FEATURE_GROUPS.values() for f in group]
     X = np.array([[values[k] for k in ordered_keys]])
-    p = pipe.predict_proba(X)[0, 1]  # probability malignant
+    p = pipe.predict_proba(X)[0, 1]
 
     if p >= 0.5:
         st.error(
