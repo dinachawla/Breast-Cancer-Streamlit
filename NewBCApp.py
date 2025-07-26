@@ -2,7 +2,6 @@ import streamlit as st
 import numpy as np
 import pandas as pd
 import joblib
-import plotly.express as px
 import plotly.graph_objects as go
 from pathlib import Path
 from sklearn.preprocessing import MinMaxScaler
@@ -94,62 +93,49 @@ for group_title, feature_list in FEATURE_GROUPS.items():
                 )
             values[key] = num_val
 
-# ───────────────  Live feature comparison chart with toggle ───────────────────────
+# ───────────────  Feature-by-feature malignancy likelihood graph  ─────────────────────
 st.markdown("<div style='height:2rem'></div>", unsafe_allow_html=True)
-chart_type = st.radio("Choose chart type:", ["Bar Chart", "Line Graph"], horizontal=True)
+st.subheader("Feature-Level Malignancy Likelihood")
 
-ordered_keys = [f[0] for group in FEATURE_GROUPS.values() for f in group]
-user_input = np.array([values[k] for k in ordered_keys])
+user_input_dict = {k: values[k] for k in values}
+likelihoods = []
 
-benign_profile = df[df['target'] == 1][ordered_keys].mean()
-malignant_profile = df[df['target'] == 0][ordered_keys].mean()
+for feature, user_val in user_input_dict.items():
+    margin = 0.05 * user_val
+    min_val = user_val - margin
+    max_val = user_val + margin
+    nearby_cases = df[(df[feature] >= min_val) & (df[feature] <= max_val)]
+    if not nearby_cases.empty:
+        malignant_pct = 100 * (1 - nearby_cases['target'].mean())
+    else:
+        malignant_pct = None
+    likelihoods.append((feature, user_val, malignant_pct, len(nearby_cases)))
 
-scaler = MinMaxScaler()
-scaled = scaler.fit_transform([benign_profile, malignant_profile, user_input])
-benign_scaled, malignant_scaled, user_scaled = scaled
+likelihood_df = pd.DataFrame(likelihoods, columns=["Feature", "User Value", "% Malignant", "Cases in Range"])
 
-profile_df = pd.DataFrame({
-    'Feature': ordered_keys * 3,
-    'Value': np.concatenate([benign_scaled, malignant_scaled, user_scaled]),
-    'Profile': ['Benign'] * len(ordered_keys) +
-               ['Malignant'] * len(ordered_keys) +
-               ['Your Input'] * len(ordered_keys)
-})
-
-if chart_type == "Bar Chart":
-    fig = px.bar(
-        profile_df,
-        x='Feature',
-        y='Value',
-        color='Profile',
-        barmode='group',
-        title='Live Tumor Feature Comparison (Normalized)',
-        height=500
-    )
-    fig.update_layout(xaxis_tickangle=-45)
-else:
-    fig = go.Figure()
-    for profile in ['Benign', 'Malignant', 'Your Input']:
-        profile_data = profile_df[profile_df['Profile'] == profile]
-        fig.add_trace(go.Scatter(
-            x=profile_data['Feature'],
-            y=profile_data['Value'],
-            mode='lines+markers',
-            name=profile
-        ))
-    fig.update_layout(
-        title='Tumor Profile Comparison (Line Chart)',
-        xaxis_title='Feature',
-        yaxis_title='Normalized Value',
-        height=500
-    )
-
+filtered_df = likelihood_df.dropna()
+fig = go.Figure()
+fig.add_trace(go.Scatter(
+    x=filtered_df['Feature'],
+    y=filtered_df['% Malignant'],
+    mode='lines+markers',
+    name='% Malignant',
+    line=dict(color='crimson', width=3)
+))
+fig.update_layout(
+    title='Estimated Malignancy Likelihood per Feature',
+    xaxis_title='Tumor Feature',
+    yaxis_title='% of Similar Cases that were Malignant',
+    yaxis_range=[0, 100],
+    height=500
+)
 st.plotly_chart(fig, use_container_width=True)
 
 # ───────────────  Prediction & result card  ───────────────────────
 st.markdown("<div style='height:2rem'></div>", unsafe_allow_html=True)
 
 if st.button("Classify"):
+    ordered_keys = [f[0] for group in FEATURE_GROUPS.values() for f in group]
     X = np.array([[values[k] for k in ordered_keys]])
     p = pipe.predict_proba(X)[0, 1]  # probability malignant
 
