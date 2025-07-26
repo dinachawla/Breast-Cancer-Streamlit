@@ -12,12 +12,10 @@ st.set_page_config(layout="wide")
 MODEL_PATH = Path("breast_cancer_pipe_updated.pkl")
 TEST_ACC   = 0.965
 
-# Load breast cancer dataset for reference profiles
 data = load_breast_cancer()
 df = pd.DataFrame(data.data, columns=data.feature_names)
 df['target'] = data.target
 
-# Grouped input structure
 FEATURE_GROUPS = {
     "Radius (mm)": [
         ("mean radius", "Mean radius", "Average nucleus distance to edge", 0.0, 50.0, 0.01, 14.127),
@@ -50,13 +48,27 @@ def load_model(path: Path):
 
 pipe = load_model(MODEL_PATH)
 
-# ─────────────────────────────  Page layout  ─────────────────────────────────
+st.markdown("""
+<style>
+    .sticky-right {
+        position: -webkit-sticky;
+        position: sticky;
+        top: 2rem;
+        align-self: flex-start;
+        background-color: #fafafa;
+        padding: 1rem;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+</style>
+""", unsafe_allow_html=True)
+
 st.title("Breast Cancer ML Classifier 🩺")
 st.caption(f"Model hold-out accuracy: {TEST_ACC:.1%}")
 
 left_col, right_col = st.columns([2, 1], gap="large")
 
-# Left: inputs
+# Left panel: Inputs
 with left_col:
     st.subheader("Adjust Tumor Characteristics")
     values = {}
@@ -86,9 +98,11 @@ with left_col:
                                        value=avg, step=step)
                 values[key] = slider_val
 
-# Right: graph and live prediction
+# Right panel: Sticky results
 with right_col:
+    st.markdown('<div class="sticky-right">', unsafe_allow_html=True)
     st.subheader("Feature-Level Malignancy Likelihood")
+
     user_input_dict = {k: v for k, v in values.items()}
     likelihoods = []
     for feature, user_val in user_input_dict.items():
@@ -120,7 +134,8 @@ with right_col:
         xaxis_title='Tumor Feature',
         yaxis_title='% of Similar Cases that were Malignant',
         yaxis_range=[0, 100],
-        height=500
+        height=500,
+        margin=dict(l=10, r=10, t=40, b=40)
     )
     st.plotly_chart(fig, use_container_width=True)
 
@@ -133,3 +148,4 @@ with right_col:
     else:
         st.success(f"🩺 **BENIGN**  \nProbability: **{1-p:.1%}** (≈ {(1-p)*100:.0f} out of 100 similar cases)", icon="✅")
     st.caption("Model is for educational use only and **does not replace professional medical advice.**")
+    st.markdown('</div>', unsafe_allow_html=True)
