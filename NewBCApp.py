@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import joblib
 import plotly.express as px
+import plotly.graph_objects as go
 from pathlib import Path
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.datasets import load_breast_cancer
@@ -93,8 +94,9 @@ for group_title, feature_list in FEATURE_GROUPS.items():
                 )
             values[key] = num_val
 
-# ───────────────  Live feature comparison chart  ───────────────────────
+# ───────────────  Live feature comparison chart with toggle ───────────────────────
 st.markdown("<div style='height:2rem'></div>", unsafe_allow_html=True)
+chart_type = st.radio("Choose chart type:", ["Bar Chart", "Line Graph"], horizontal=True)
 
 ordered_keys = [f[0] for group in FEATURE_GROUPS.values() for f in group]
 user_input = np.array([values[k] for k in ordered_keys])
@@ -114,16 +116,34 @@ profile_df = pd.DataFrame({
                ['Your Input'] * len(ordered_keys)
 })
 
-fig = px.bar(
-    profile_df,
-    x='Feature',
-    y='Value',
-    color='Profile',
-    barmode='group',
-    title='Live Tumor Feature Comparison (Normalized)',
-    height=500
-)
-fig.update_layout(xaxis_tickangle=-45)
+if chart_type == "Bar Chart":
+    fig = px.bar(
+        profile_df,
+        x='Feature',
+        y='Value',
+        color='Profile',
+        barmode='group',
+        title='Live Tumor Feature Comparison (Normalized)',
+        height=500
+    )
+    fig.update_layout(xaxis_tickangle=-45)
+else:
+    fig = go.Figure()
+    for profile in ['Benign', 'Malignant', 'Your Input']:
+        profile_data = profile_df[profile_df['Profile'] == profile]
+        fig.add_trace(go.Scatter(
+            x=profile_data['Feature'],
+            y=profile_data['Value'],
+            mode='lines+markers',
+            name=profile
+        ))
+    fig.update_layout(
+        title='Tumor Profile Comparison (Line Chart)',
+        xaxis_title='Feature',
+        yaxis_title='Normalized Value',
+        height=500
+    )
+
 st.plotly_chart(fig, use_container_width=True)
 
 # ───────────────  Prediction & result card  ───────────────────────
