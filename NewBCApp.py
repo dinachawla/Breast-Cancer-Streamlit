@@ -61,35 +61,32 @@ with left_col:
     st.subheader("Adjust tumour characteristics")
     for group_title, feature_list in FEATURE_GROUPS.items():
         st.markdown(f"### {group_title}")
+
         if len(feature_list) == 1:
-            # Single input
             cfg = feature_list[0]
             key, label, desc, vmin, vmax, step, avg = cfg
+
             st.markdown(f"<h4 style='margin-bottom:0.2rem'>{label}</h4>", unsafe_allow_html=True)
             st.caption(desc)
             avg_display = f"{avg:.4f}" if step < 1 else f"{avg:.0f}"
             st.caption(f"*Population average: {avg_display}*")
-            s_col, n_col = st.columns([3, 1])
-            slid_val = s_col.slider(label="", key=f"s_{key}", min_value=vmin, max_value=vmax,
-                                    value=avg, step=step, label_visibility="collapsed")
-            num_val = n_col.number_input(label="Exact", key=f"n_{key}", min_value=vmin, max_value=vmax,
-                                         value=slid_val, step=step, format="%.4f" if step < 1 else "%.0f")
-            values[key] = num_val
+
+            slider_val = st.slider(label=f"{label}", key=f"s_{key}", min_value=vmin, max_value=vmax,
+                                   value=avg, step=step)
+            values[key] = slider_val
+
         else:
-            left, right = st.columns(2, gap="large")
-            for col, cfg in zip((left, right), feature_list):
+            for cfg in feature_list:
                 key, label, desc, vmin, vmax, step, avg = cfg
-                with col:
+                with st.container():
                     st.markdown(f"<h4 style='margin-bottom:0.2rem'>{label}</h4>", unsafe_allow_html=True)
                     st.caption(desc)
                     avg_display = f"{avg:.4f}" if step < 1 else f"{avg:.0f}"
                     st.caption(f"*Population average: {avg_display}*")
-                    s_col, n_col = st.columns([3, 1])
-                    slid_val = s_col.slider(label="", key=f"s_{key}", min_value=vmin, max_value=vmax,
-                                            value=avg, step=step, label_visibility="collapsed")
-                    num_val = n_col.number_input(label="Exact", key=f"n_{key}", min_value=vmin, max_value=vmax,
-                                                 value=slid_val, step=step, format="%.4f" if step < 1 else "%.0f")
-                    values[key] = num_val
+
+                    slider_val = st.slider(label=f"{label}", key=f"s_{key}", min_value=vmin, max_value=vmax,
+                                           value=avg, step=step)
+                    values[key] = slider_val
 
 with right_col:
     st.subheader("Feature-Level Malignancy Likelihood")
