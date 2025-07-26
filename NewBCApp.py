@@ -8,13 +8,22 @@ from sklearn.datasets import load_breast_cancer
 
 st.set_page_config(layout="wide")
 
-# Inject CSS for scroll behavior
+# Inject CSS for scroll behavior and sticky chart
 st.markdown("""
 <style>
 .scrollable-metrics {
     max-height: 80vh;
     overflow-y: auto;
     padding-right: 1rem;
+}
+.sticky-chart {
+    position: sticky;
+    top: 0;
+    z-index: 999;
+    background-color: white;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #ccc;
+    margin-bottom: 1rem;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -79,91 +88,4 @@ def sync_number_input(key):
     st.session_state[f"n_{key}"] = st.session_state[f"s_{key}"]
 
 # UI
-st.title("Breast Cancer ML Classifier 🪰")
-st.caption(f"Model hold-out accuracy: {TEST_ACC:.1%}")
-st.subheader("Adjust Tumor Characteristics")
-
-left_col, right_col = st.columns([1, 1], gap="large")
-
-with left_col:
-    st.markdown('<div class="scrollable-metrics">', unsafe_allow_html=True)
-    values = {}
-    for group_title, keys in FEATURE_GROUPS.items():
-        st.markdown(f"### {group_title}")
-        cols = st.columns(len(keys))
-        for col, key in zip(cols, keys):
-            with col:
-                low, high, step, avg = percentile_bounds[key]
-                st.markdown(f"<h4 style='margin-bottom:0.2rem'>{key.title()}</h4>", unsafe_allow_html=True)
-                st.caption(f"*Population average: {avg:.3f}*")
-
-                st.slider(
-                    label="", key=f"s_{key}",
-                    min_value=float(low), max_value=float(high),
-                    step=float(step), label_visibility="collapsed",
-                    on_change=sync_number_input, args=(key,)
-                )
-
-                st.number_input(
-                    label="Exact", key=f"n_{key}",
-                    min_value=float(low), max_value=float(high),
-                    step=float(step), format="%.4f" if step < 1 else "%.0f",
-                    on_change=sync_slider, args=(key,)
-                )
-
-                if st.button(f"Reset {key.title()}", key=f"reset_{key}"):
-                    st.session_state.reset_trigger = key
-                    st.experimental_rerun()
-
-                values[key] = st.session_state[f"n_{key}"]
-    st.markdown('</div>', unsafe_allow_html=True)
-
-with right_col:
-    st.subheader("Feature-Level Malignancy Likelihood")
-    likelihoods = []
-    for feature, user_val in values.items():
-        margin = 0.05 * user_val
-        min_val = user_val - margin
-        max_val = user_val + margin
-        nearby_cases = df[(df[feature] >= min_val) & (df[feature] <= max_val)]
-        if not nearby_cases.empty:
-            malignant_pct = 100 * (1 - nearby_cases['target'].mean())
-        else:
-            malignant_pct = None
-        likelihoods.append((feature, user_val, malignant_pct, len(nearby_cases)))
-
-    likelihood_df = pd.DataFrame(likelihoods, columns=["Feature", "User Value", "% Malignant", "Cases in Range"])
-    filtered_df = likelihood_df.dropna()
-
-    if not filtered_df.empty:
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(
-            x=filtered_df['Feature'],
-            y=filtered_df['% Malignant'],
-            mode='lines+markers+text',
-            name='% Malignant',
-            line=dict(color='crimson', width=3),
-            text=[f"{p:.1f}%" for p in filtered_df['% Malignant']],
-            textposition="top center"
-        ))
-        fig.update_layout(
-            title='Estimated Malignancy Likelihood per Feature',
-            xaxis_title='Tumor Feature',
-            yaxis_title='% of Similar Cases that were Malignant',
-            yaxis_range=[0, 100],
-            height=500,
-            margin=dict(l=10, r=10, t=40, b=40)
-        )
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.info("Not enough data to show malignancy likelihood chart.")
-
-    st.subheader("Diagnosis Estimate")
-    ordered_keys = [k for keys in FEATURE_GROUPS.values() for k in keys]
-    X = np.array([[values[k] for k in ordered_keys]])
-    p = pipe.predict_proba(X)[0, 1]
-    if p >= 0.5:
-        st.error(f"🚨 **MALIGNANT**  \nProbability: **{p:.1%}** (≈ {p*100:.0f} out of 100 similar cases)", icon="🚨")
-    else:
-        st.success(f"🪺 **BENIGN**  \nProbability: **{1-p:.1%}** (≈ {(1-p)*100:.0f} out of 100 similar cases)", icon="✅")
-    st.caption("Model is for educational use only and **does not replace professional medical advice.**")
+st.title("Breast Cancer ML Classifier 
