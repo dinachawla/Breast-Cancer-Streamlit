@@ -31,7 +31,6 @@ for col in data.feature_names:
     step = 0.001 if high - low < 10 else 0.1 if high - low < 100 else 1
     percentile_bounds[col] = (low, high, step, avg)
 
-# Define grouped features
 FEATURE_GROUPS = {
     "Radius (mm)": ["mean radius", "worst radius"],
     "Perimeter (mm)": ["mean perimeter", "worst perimeter"],
@@ -51,7 +50,6 @@ for key in data.feature_names:
         st.session_state[f"s_{key}"] = avg
         st.session_state[f"n_{key}"] = avg
 
-# Handle reset (safely)
 if st.session_state.reset_trigger is not None:
     reset_key = st.session_state.reset_trigger
     if reset_key in percentile_bounds:
@@ -60,37 +58,39 @@ if st.session_state.reset_trigger is not None:
         st.session_state[f"n_{reset_key}"] = avg
     st.session_state.reset_trigger = None
 
-# Sync logic
 def sync_slider(key):
     st.session_state[f"s_{key}"] = st.session_state[f"n_{key}"]
 
 def sync_number_input(key):
     st.session_state[f"n_{key}"] = st.session_state[f"s_{key}"]
 
-# UI
+# CSS fix for left column scroll
+st.markdown("""
+<style>
+.left-scroll {
+    height: 650px;
+    overflow-y: scroll;
+    padding-right: 1rem;
+}
+</style>
+""", unsafe_allow_html=True)
+
 st.title("Breast Cancer ML Classifier 🩺")
 st.caption(f"Model hold-out accuracy: {TEST_ACC:.1%}")
 st.subheader("Adjust Tumor Characteristics")
 
-left_col, right_col = st.columns([1, 1], gap="large")
+# Main columns
+layout_col1, layout_col2 = st.columns([1, 1], gap="large")
 
-# LEFT COLUMN with native scroll container
-with left_col:
-    st.markdown("""
-        <style>
-        .scroll-container {
-            height: 600px;
-            overflow-y: auto;
-            padding-right: 1rem;
-        }
-        </style>
-        <div class="scroll-container">
-    """, unsafe_allow_html=True)
-
+# LEFT SCROLLABLE COLUMN
+with layout_col1:
+    container = st.container()
+    container.markdown('<div class="left-scroll">', unsafe_allow_html=True)
     values = {}
+
     for group_title, keys in FEATURE_GROUPS.items():
-        st.markdown(f"### {group_title}")
-        cols = st.columns(len(keys))
+        container.markdown(f"### {group_title}")
+        cols = container.columns(len(keys))
         for col, key in zip(cols, keys):
             with col:
                 low, high, step, avg = percentile_bounds[key]
@@ -116,11 +116,10 @@ with left_col:
                     st.experimental_rerun()
 
                 values[key] = st.session_state[f"n_{key}"]
+    container.markdown("</div>", unsafe_allow_html=True)
 
-    st.markdown("</div>", unsafe_allow_html=True)
-
-# RIGHT COLUMN with graph + diagnosis
-with right_col:
+# RIGHT COLUMN: Graph + Diagnosis
+with layout_col2:
     st.subheader("Feature-Level Malignancy Likelihood")
     likelihoods = []
     for feature, user_val in values.items():
