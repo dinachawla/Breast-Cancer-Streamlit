@@ -41,11 +41,14 @@ FEATURE_GROUPS = {
     "Texture": ["mean texture"]
 }
 
-# Safe session state reset
-def safe_reset(key, avg):
-    for k in [f"s_{key}", f"n_{key}"]:
-        if k in st.session_state:
-            del st.session_state[k]
+# Sync slider and number input
+def sync_slider(key):
+    st.session_state[f"s_{key}"] = st.session_state[f"n_{key}"]
+
+def sync_number_input(key):
+    st.session_state[f"n_{key}"] = st.session_state[f"s_{key}"]
+
+def reset_values(key, avg):
     st.session_state[f"s_{key}"] = avg
     st.session_state[f"n_{key}"] = avg
 
@@ -67,37 +70,57 @@ with left_col:
                     low, high, step, avg = percentile_bounds[key]
                     st.markdown(f"<h4 style='margin-bottom:0.2rem'>{key.title()}</h4>", unsafe_allow_html=True)
                     st.caption(f"*Population average: {avg:.3f}*")
-                    slider_val = st.slider(
+
+                    if f"s_{key}" not in st.session_state:
+                        st.session_state[f"s_{key}"] = avg
+                        st.session_state[f"n_{key}"] = avg
+
+                    st.slider(
                         label="", key=f"s_{key}",
-                        min_value=float(low), max_value=float(high), value=float(avg),
-                        step=float(step), label_visibility="collapsed"
+                        min_value=float(low), max_value=float(high),
+                        step=float(step), label_visibility="collapsed",
+                        on_change=sync_number_input, args=(key,)
                     )
-                    num_val = st.number_input(
+
+                    st.number_input(
                         label="Exact", key=f"n_{key}",
-                        min_value=float(low), max_value=float(high), value=float(slider_val),
-                        step=float(step), format="%.4f" if step < 1 else "%.0f"
+                        min_value=float(low), max_value=float(high),
+                        step=float(step), format="%.4f" if step < 1 else "%.0f",
+                        on_change=sync_slider, args=(key,)
                     )
+
                     if st.button(f"Reset {key.title()}", key=f"reset_{key}"):
-                        safe_reset(key, avg)
-                    values[key] = num_val
+                        reset_values(key, avg)
+
+                    values[key] = st.session_state[f"n_{key}"]
         else:
             for key in keys:
                 low, high, step, avg = percentile_bounds[key]
                 st.markdown(f"<h4 style='margin-bottom:0.2rem'>{key.title()}</h4>", unsafe_allow_html=True)
                 st.caption(f"*Population average: {avg:.3f}*")
-                slider_val = st.slider(
+
+                if f"s_{key}" not in st.session_state:
+                    st.session_state[f"s_{key}"] = avg
+                    st.session_state[f"n_{key}"] = avg
+
+                st.slider(
                     label="", key=f"s_{key}",
-                    min_value=float(low), max_value=float(high), value=float(avg),
-                    step=float(step), label_visibility="collapsed"
+                    min_value=float(low), max_value=float(high),
+                    step=float(step), label_visibility="collapsed",
+                    on_change=sync_number_input, args=(key,)
                 )
-                num_val = st.number_input(
+
+                st.number_input(
                     label="Exact", key=f"n_{key}",
-                    min_value=float(low), max_value=float(high), value=float(slider_val),
-                    step=float(step), format="%.4f" if step < 1 else "%.0f"
+                    min_value=float(low), max_value=float(high),
+                    step=float(step), format="%.4f" if step < 1 else "%.0f",
+                    on_change=sync_slider, args=(key,)
                 )
+
                 if st.button(f"Reset {key.title()}", key=f"reset_{key}"):
-                    safe_reset(key, avg)
-                values[key] = num_val
+                    reset_values(key, avg)
+
+                values[key] = st.session_state[f"n_{key}"]
 
 with right_col:
     st.subheader("Feature-Level Malignancy Likelihood")
