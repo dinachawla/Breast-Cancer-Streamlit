@@ -41,16 +41,30 @@ FEATURE_GROUPS = {
     "Texture": ["mean texture"]
 }
 
-# Sync slider and number input
+# Init state and reset handler
+if "initialized" not in st.session_state:
+    st.session_state.initialized = True
+    for key in data.feature_names:
+        _, _, _, avg = percentile_bounds[key]
+        st.session_state[f"s_{key}"] = avg
+        st.session_state[f"n_{key}"] = avg
+
+if "reset_trigger" not in st.session_state:
+    st.session_state.reset_trigger = None
+
+if st.session_state.reset_trigger:
+    reset_key = st.session_state.reset_trigger
+    _, _, _, avg = percentile_bounds[reset_key]
+    st.session_state[f"s_{reset_key}"] = avg
+    st.session_state[f"n_{reset_key}"] = avg
+    st.session_state.reset_trigger = None  # Clear flag
+
+# Sync logic
 def sync_slider(key):
     st.session_state[f"s_{key}"] = st.session_state[f"n_{key}"]
 
 def sync_number_input(key):
     st.session_state[f"n_{key}"] = st.session_state[f"s_{key}"]
-
-# Initialize reset queue
-if "reset_keys" not in st.session_state:
-    st.session_state["reset_keys"] = []
 
 # App UI
 st.title("Breast Cancer ML Classifier 🩺")
@@ -71,10 +85,6 @@ with left_col:
                     st.markdown(f"<h4 style='margin-bottom:0.2rem'>{key.title()}</h4>", unsafe_allow_html=True)
                     st.caption(f"*Population average: {avg:.3f}*")
 
-                    if f"s_{key}" not in st.session_state:
-                        st.session_state[f"s_{key}"] = avg
-                        st.session_state[f"n_{key}"] = avg
-
                     st.slider(
                         label="", key=f"s_{key}",
                         min_value=float(low), max_value=float(high),
@@ -90,7 +100,8 @@ with left_col:
                     )
 
                     if st.button(f"Reset {key.title()}", key=f"reset_{key}"):
-                        st.session_state["reset_keys"].append((key, avg))
+                        st.session_state.reset_trigger = key
+                        st.experimental_rerun()
 
                     values[key] = st.session_state[f"n_{key}"]
         else:
@@ -98,10 +109,6 @@ with left_col:
                 low, high, step, avg = percentile_bounds[key]
                 st.markdown(f"<h4 style='margin-bottom:0.2rem'>{key.title()}</h4>", unsafe_allow_html=True)
                 st.caption(f"*Population average: {avg:.3f}*")
-
-                if f"s_{key}" not in st.session_state:
-                    st.session_state[f"s_{key}"] = avg
-                    st.session_state[f"n_{key}"] = avg
 
                 st.slider(
                     label="", key=f"s_{key}",
@@ -118,15 +125,10 @@ with left_col:
                 )
 
                 if st.button(f"Reset {key.title()}", key=f"reset_{key}"):
-                    st.session_state["reset_keys"].append((key, avg))
+                    st.session_state.reset_trigger = key
+                    st.experimental_rerun()
 
                 values[key] = st.session_state[f"n_{key}"]
-
-# Perform resets AFTER rendering widgets
-for key, avg in st.session_state["reset_keys"]:
-    st.session_state[f"s_{key}"] = avg
-    st.session_state[f"n_{key}"] = avg
-st.session_state["reset_keys"] = []
 
 with right_col:
     st.subheader("Feature-Level Malignancy Likelihood")
@@ -145,25 +147,28 @@ with right_col:
     likelihood_df = pd.DataFrame(likelihoods, columns=["Feature", "User Value", "% Malignant", "Cases in Range"])
     filtered_df = likelihood_df.dropna()
 
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(
-        x=filtered_df['Feature'],
-        y=filtered_df['% Malignant'],
-        mode='lines+markers+text',
-        name='% Malignant',
-        line=dict(color='crimson', width=3),
-        text=[f"{p:.1f}%" for p in filtered_df['% Malignant']],
-        textposition="top center"
-    ))
-    fig.update_layout(
-        title='Estimated Malignancy Likelihood per Feature',
-        xaxis_title='Tumor Feature',
-        yaxis_title='% of Similar Cases that were Malignant',
-        yaxis_range=[0, 100],
-        height=500,
-        margin=dict(l=10, r=10, t=40, b=40)
-    )
-    st.plotly_chart(fig, use_container_width=True)
+    if not filtered_df.empty:
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=filtered_df['Feature'],
+            y=filtered_df['% Malignant'],
+            mode='lines+markers+text',
+            name='% Malignant',
+            line=dict(color='crimson', width=3),
+            text=[f"{p:.1f}%" for p in filtered_df['% Malignant']],
+            textposition="top center"
+        ))
+        fig.update_layout(
+            title='Estimated Malignancy Likelihood per Feature',
+            xaxis_title='Tumor Feature',
+            yaxis_title='% of Similar Cases that were Malignant',
+            yaxis_range=[0, 100],
+            height=500,
+            margin=dict(l=10, r=10, t=40, b=40)
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("Not enough data to show malignancy likelihood chart.")
 
     st.subheader("Diagnosis Estimate")
     ordered_keys = [k for keys in FEATURE_GROUPS.values() for k in keys]
