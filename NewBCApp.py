@@ -54,26 +54,42 @@ pipe = load_model(MODEL_PATH)
 st.title("Breast Cancer ML Classifier 🩺")
 st.caption(f"Model hold-out accuracy: {TEST_ACC:.1%}")
 
-# Fixed container for chart and prediction on top
-with st.container():
-    chart_col, result_col = st.columns([3, 1])
-    with chart_col:
-        st.subheader("Feature-Level Malignancy Likelihood")
-    with result_col:
-        st.subheader("Diagnosis Estimate")
+left_col, right_col = st.columns([2, 1], gap="large")
 
-# Compute values early so we can use them in both places
-values = {}
-user_input_dict = {}
-for group_title, feature_list in FEATURE_GROUPS.items():
-    for cfg in feature_list:
-        key, label, desc, vmin, vmax, step, avg = cfg
-        values[key] = avg
-        user_input_dict[key] = avg
+# Left: inputs
+with left_col:
+    st.subheader("Adjust Tumor Characteristics")
+    values = {}
+    for group_title, feature_list in FEATURE_GROUPS.items():
+        st.markdown(f"### {group_title}")
+        if len(feature_list) == 2:
+            f1, f2 = feature_list
+            col1, col2 = st.columns(2, gap="medium")
+            for col, cfg in zip((col1, col2), (f1, f2)):
+                key, label, desc, vmin, vmax, step, avg = cfg
+                with col:
+                    st.markdown(f"<h4 style='margin-bottom:0.2rem'>{label}</h4>", unsafe_allow_html=True)
+                    st.caption(desc)
+                    avg_display = f"{avg:.4f}" if step < 1 else f"{avg:.0f}"
+                    st.caption(f"*Population average: {avg_display}*")
+                    slider_val = st.slider(label=f"{label}", key=f"s_{key}", min_value=vmin, max_value=vmax,
+                                           value=avg, step=step)
+                    values[key] = slider_val
+        else:
+            for cfg in feature_list:
+                key, label, desc, vmin, vmax, step, avg = cfg
+                st.markdown(f"<h4 style='margin-bottom:0.2rem'>{label}</h4>", unsafe_allow_html=True)
+                st.caption(desc)
+                avg_display = f"{avg:.4f}" if step < 1 else f"{avg:.0f}"
+                st.caption(f"*Population average: {avg_display}*")
+                slider_val = st.slider(label=f"{label}", key=f"s_{key}", min_value=vmin, max_value=vmax,
+                                       value=avg, step=step)
+                values[key] = slider_val
 
-# Display the live graph using placeholders
-with chart_col:
-    df['target'] = data.target
+# Right: graph and live prediction
+with right_col:
+    st.subheader("Feature-Level Malignancy Likelihood")
+    user_input_dict = {k: v for k, v in values.items()}
     likelihoods = []
     for feature, user_val in user_input_dict.items():
         margin = 0.05 * user_val
@@ -108,7 +124,7 @@ with chart_col:
     )
     st.plotly_chart(fig, use_container_width=True)
 
-with result_col:
+    st.subheader("Diagnosis Estimate")
     ordered_keys = [f[0] for group in FEATURE_GROUPS.values() for f in group]
     X = np.array([[values[k] for k in ordered_keys]])
     p = pipe.predict_proba(X)[0, 1]
@@ -117,31 +133,3 @@ with result_col:
     else:
         st.success(f"🩺 **BENIGN**  \nProbability: **{1-p:.1%}** (≈ {(1-p)*100:.0f} out of 100 similar cases)", icon="✅")
     st.caption("Model is for educational use only and **does not replace professional medical advice.**")
-
-# Scrollable section for user inputs
-st.subheader("Adjust Tumor Characteristics")
-for group_title, feature_list in FEATURE_GROUPS.items():
-    st.markdown(f"### {group_title}")
-    if len(feature_list) == 2:
-        f1, f2 = feature_list
-        col1, col2 = st.columns(2, gap="medium")
-        for col, cfg in zip((col1, col2), (f1, f2)):
-            key, label, desc, vmin, vmax, step, avg = cfg
-            with col:
-                st.markdown(f"<h4 style='margin-bottom:0.2rem'>{label}</h4>", unsafe_allow_html=True)
-                st.caption(desc)
-                avg_display = f"{avg:.4f}" if step < 1 else f"{avg:.0f}"
-                st.caption(f"*Population average: {avg_display}*")
-                slider_val = st.slider(label=f"{label}", key=f"s_{key}", min_value=vmin, max_value=vmax,
-                                       value=avg, step=step)
-                values[key] = slider_val
-    else:
-        for cfg in feature_list:
-            key, label, desc, vmin, vmax, step, avg = cfg
-            st.markdown(f"<h4 style='margin-bottom:0.2rem'>{label}</h4>", unsafe_allow_html=True)
-            st.caption(desc)
-            avg_display = f"{avg:.4f}" if step < 1 else f"{avg:.0f}"
-            st.caption(f"*Population average: {avg_display}*")
-            slider_val = st.slider(label=f"{label}", key=f"s_{key}", min_value=vmin, max_value=vmax,
-                                   value=avg, step=step)
-            values[key] = slider_val
