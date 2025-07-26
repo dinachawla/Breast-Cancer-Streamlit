@@ -47,52 +47,32 @@ def load_model(path: Path):
 
 pipe = load_model(MODEL_PATH)
 
-st.markdown("""
-<style>
-.main-container {
-  display: flex;
-  flex-direction: row;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 2rem;
-}
-.left-column {
-  flex: 1;
-  max-width: 50%;
-  overflow-y: auto;
-}
-.right-column {
-  flex: 1;
-  max-width: 50%;
-  position: -webkit-sticky;
-  position: sticky;
-  top: 1rem;
-  align-self: flex-start;
-  background-color: #fafafa;
-  padding: 1.5rem;
-  border-radius: 10px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
-  z-index: 5;
-}
-</style>
-<div class="main-container">
-""", unsafe_allow_html=True)
-
-# LEFT SIDE
-st.markdown("<div class='left-column'>", unsafe_allow_html=True)
 st.title("Breast Cancer ML Classifier 🩺")
 st.caption(f"Model hold-out accuracy: {TEST_ACC:.1%}")
 st.subheader("Adjust Tumor Characteristics")
 
-values = {}
-for group_title, feature_list in FEATURE_GROUPS.items():
-    st.markdown(f"### {group_title}")
-    if len(feature_list) == 2:
-        f1, f2 = feature_list
-        col1, col2 = st.columns(2, gap="medium")
-        for col, cfg in zip((col1, col2), (f1, f2)):
-            key, label, desc, vmin, vmax, step, avg = cfg
-            with col:
+left_col, right_col = st.columns([1, 1], gap="large")
+
+with left_col:
+    values = {}
+    for group_title, feature_list in FEATURE_GROUPS.items():
+        st.markdown(f"### {group_title}")
+        if len(feature_list) == 2:
+            f1, f2 = feature_list
+            col1, col2 = st.columns(2, gap="medium")
+            for col, cfg in zip((col1, col2), (f1, f2)):
+                key, label, desc, vmin, vmax, step, avg = cfg
+                with col:
+                    st.markdown(f"<h4 style='margin-bottom:0.2rem'>{label}</h4>", unsafe_allow_html=True)
+                    st.caption(desc)
+                    avg_display = f"{avg:.4f}" if step < 1 else f"{avg:.0f}"
+                    st.caption(f"*Population average: {avg_display}*")
+                    slider_val = st.slider(label=f"{label}", key=f"s_{key}", min_value=vmin, max_value=vmax,
+                                           value=avg, step=step)
+                    values[key] = slider_val
+        else:
+            for cfg in feature_list:
+                key, label, desc, vmin, vmax, step, avg = cfg
                 st.markdown(f"<h4 style='margin-bottom:0.2rem'>{label}</h4>", unsafe_allow_html=True)
                 st.caption(desc)
                 avg_display = f"{avg:.4f}" if step < 1 else f"{avg:.0f}"
@@ -100,65 +80,52 @@ for group_title, feature_list in FEATURE_GROUPS.items():
                 slider_val = st.slider(label=f"{label}", key=f"s_{key}", min_value=vmin, max_value=vmax,
                                        value=avg, step=step)
                 values[key] = slider_val
+
+with right_col:
+    st.subheader("Feature-Level Malignancy Likelihood")
+
+    user_input_dict = {k: v for k, v in values.items()}
+    likelihoods = []
+    for feature, user_val in user_input_dict.items():
+        margin = 0.05 * user_val
+        min_val = user_val - margin
+        max_val = user_val + margin
+        nearby_cases = df[(df[feature] >= min_val) & (df[feature] <= max_val)]
+        if not nearby_cases.empty:
+            malignant_pct = 100 * (1 - nearby_cases['target'].mean())
+        else:
+            malignant_pct = None
+        likelihoods.append((feature, user_val, malignant_pct, len(nearby_cases)))
+
+    likelihood_df = pd.DataFrame(likelihoods, columns=["Feature", "User Value", "% Malignant", "Cases in Range"])
+    filtered_df = likelihood_df.dropna()
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=filtered_df['Feature'],
+        y=filtered_df['% Malignant'],
+        mode='lines+markers+text',
+        name='% Malignant',
+        line=dict(color='crimson', width=3),
+        text=[f"{p:.1f}%" for p in filtered_df['% Malignant']],
+        textposition="top center"
+    ))
+    fig.update_layout(
+        title='Estimated Malignancy Likelihood per Feature',
+        xaxis_title='Tumor Feature',
+        yaxis_title='% of Similar Cases that were Malignant',
+        yaxis_range=[0, 100],
+        height=500,
+        margin=dict(l=10, r=10, t=40, b=40)
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.subheader("Diagnosis Estimate")
+    ordered_keys = [f[0] for group in FEATURE_GROUPS.values() for f in group]
+    X = np.array([[values[k] for k in ordered_keys]])
+    p = pipe.predict_proba(X)[0, 1]
+    if p >= 0.5:
+        st.error(f"🚨 **MALIGNANT**  \nProbability: **{p:.1%}** (≈ {p*100:.0f} out of 100 similar cases)", icon="🚨")
     else:
-        for cfg in feature_list:
-            key, label, desc, vmin, vmax, step, avg = cfg
-            st.markdown(f"<h4 style='margin-bottom:0.2rem'>{label}</h4>", unsafe_allow_html=True)
-            st.caption(desc)
-            avg_display = f"{avg:.4f}" if step < 1 else f"{avg:.0f}"
-            st.caption(f"*Population average: {avg_display}*")
-            slider_val = st.slider(label=f"{label}", key=f"s_{key}", min_value=vmin, max_value=vmax,
-                                   value=avg, step=step)
-            values[key] = slider_val
-st.markdown("</div>", unsafe_allow_html=True)
-
-# RIGHT SIDE
-st.markdown("<div class='right-column'>", unsafe_allow_html=True)
-st.subheader("Feature-Level Malignancy Likelihood")
-
-user_input_dict = {k: v for k, v in values.items()}
-likelihoods = []
-for feature, user_val in user_input_dict.items():
-    margin = 0.05 * user_val
-    min_val = user_val - margin
-    max_val = user_val + margin
-    nearby_cases = df[(df[feature] >= min_val) & (df[feature] <= max_val)]
-    if not nearby_cases.empty:
-        malignant_pct = 100 * (1 - nearby_cases['target'].mean())
-    else:
-        malignant_pct = None
-    likelihoods.append((feature, user_val, malignant_pct, len(nearby_cases)))
-
-likelihood_df = pd.DataFrame(likelihoods, columns=["Feature", "User Value", "% Malignant", "Cases in Range"])
-filtered_df = likelihood_df.dropna()
-
-fig = go.Figure()
-fig.add_trace(go.Scatter(
-    x=filtered_df['Feature'],
-    y=filtered_df['% Malignant'],
-    mode='lines+markers+text',
-    name='% Malignant',
-    line=dict(color='crimson', width=3),
-    text=[f"{p:.1f}%" for p in filtered_df['% Malignant']],
-    textposition="top center"
-))
-fig.update_layout(
-    title='Estimated Malignancy Likelihood per Feature',
-    xaxis_title='Tumor Feature',
-    yaxis_title='% of Similar Cases that were Malignant',
-    yaxis_range=[0, 100],
-    height=500,
-    margin=dict(l=10, r=10, t=40, b=40)
-)
-st.plotly_chart(fig, use_container_width=True)
-
-st.subheader("Diagnosis Estimate")
-ordered_keys = [f[0] for group in FEATURE_GROUPS.values() for f in group]
-X = np.array([[values[k] for k in ordered_keys]])
-p = pipe.predict_proba(X)[0, 1]
-if p >= 0.5:
-    st.error(f"🚨 **MALIGNANT**  \nProbability: **{p:.1%}** (≈ {p*100:.0f} out of 100 similar cases)", icon="🚨")
-else:
-    st.success(f"🩺 **BENIGN**  \nProbability: **{1-p:.1%}** (≈ {(1-p)*100:.0f} out of 100 similar cases)", icon="✅")
-st.caption("Model is for educational use only and **does not replace professional medical advice.**")
-st.markdown("</div></div>", unsafe_allow_html=True)
+        st.success(f"🩺 **BENIGN**  \nProbability: **{1-p:.1%}** (≈ {(1-p)*100:.0f} out of 100 similar cases)", icon="✅")
+    st.caption("Model is for educational use only and **does not replace professional medical advice.**")
