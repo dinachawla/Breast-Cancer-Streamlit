@@ -8,6 +8,17 @@ from sklearn.datasets import load_breast_cancer
 
 st.set_page_config(layout="wide")
 
+# Inject CSS for scroll behavior
+st.markdown("""
+<style>
+.scrollable-metrics {
+    max-height: 80vh;
+    overflow-y: auto;
+    padding-right: 1rem;
+}
+</style>
+""", unsafe_allow_html=True)
+
 MODEL_PATH = Path("breast_cancer_pipe_updated.pkl")
 TEST_ACC = 0.965
 
@@ -68,17 +79,18 @@ def sync_number_input(key):
     st.session_state[f"n_{key}"] = st.session_state[f"s_{key}"]
 
 # UI
-st.title("Breast Cancer ML Classifier 🩺")
+st.title("Breast Cancer ML Classifier 🪰")
 st.caption(f"Model hold-out accuracy: {TEST_ACC:.1%}")
 st.subheader("Adjust Tumor Characteristics")
 
 left_col, right_col = st.columns([1, 1], gap="large")
 
 with left_col:
+    st.markdown('<div class="scrollable-metrics">', unsafe_allow_html=True)
     values = {}
     for group_title, keys in FEATURE_GROUPS.items():
         st.markdown(f"### {group_title}")
-        cols = st.columns(len(keys))  # Always safe, even if just one
+        cols = st.columns(len(keys))
         for col, key in zip(cols, keys):
             with col:
                 low, high, step, avg = percentile_bounds[key]
@@ -104,6 +116,7 @@ with left_col:
                     st.experimental_rerun()
 
                 values[key] = st.session_state[f"n_{key}"]
+    st.markdown('</div>', unsafe_allow_html=True)
 
 with right_col:
     st.subheader("Feature-Level Malignancy Likelihood")
@@ -152,5 +165,5 @@ with right_col:
     if p >= 0.5:
         st.error(f"🚨 **MALIGNANT**  \nProbability: **{p:.1%}** (≈ {p*100:.0f} out of 100 similar cases)", icon="🚨")
     else:
-        st.success(f"🩺 **BENIGN**  \nProbability: **{1-p:.1%}** (≈ {(1-p)*100:.0f} out of 100 similar cases)", icon="✅")
+        st.success(f"🪺 **BENIGN**  \nProbability: **{1-p:.1%}** (≈ {(1-p)*100:.0f} out of 100 similar cases)", icon="✅")
     st.caption("Model is for educational use only and **does not replace professional medical advice.**")
