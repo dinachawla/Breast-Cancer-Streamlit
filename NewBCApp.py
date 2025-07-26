@@ -41,12 +41,6 @@ FEATURE_GROUPS = {
     ]
 }
 
-def safe_reset(key, avg):
-    if f"s_{key}" in st.session_state:
-        st.session_state[f"s_{key}"] = avg
-    if f"n_{key}" in st.session_state:
-        st.session_state[f"n_{key}"] = avg
-
 @st.cache_resource
 def load_model(path: Path):
     return joblib.load(path)
@@ -59,8 +53,15 @@ st.subheader("Adjust Tumor Characteristics")
 
 left_col, right_col = st.columns([1, 1], gap="large")
 
+values = {}
+
+def safe_reset(key, value):
+    if f"s_{key}" in st.session_state:
+        st.session_state[f"s_{key}"] = value
+    if f"n_{key}" in st.session_state:
+        st.session_state[f"n_{key}"] = value
+
 with left_col:
-    values = {}
     for group_title, feature_list in FEATURE_GROUPS.items():
         st.markdown(f"### {group_title}")
         if len(feature_list) == 2:
@@ -73,8 +74,8 @@ with left_col:
                     st.caption(desc)
                     avg_display = f"{avg:.4f}" if step < 1 else f"{avg:.0f}"
                     st.caption(f"*Population average: {avg_display}*")
-                    slider_val = st.slider(label="", key=f"s_{key}", min_value=vmin, max_value=vmax, value=avg, step=step, label_visibility="collapsed")
-                    num_val = st.number_input(label="Exact", key=f"n_{key}", min_value=vmin, max_value=vmax, value=slider_val, step=step, format="%.4f" if step < 1 else "%.0f")
+                    slider_val = st.slider("", key=f"s_{key}", min_value=vmin, max_value=vmax, value=avg, step=step, label_visibility="collapsed")
+                    num_val = st.number_input("Exact", key=f"n_{key}", min_value=vmin, max_value=vmax, value=slider_val, step=step, format="%.4f" if step < 1 else "%.0f")
                     if st.button(f"Reset {label}", key=f"reset_{key}"):
                         safe_reset(key, avg)
                     values[key] = num_val
@@ -85,8 +86,8 @@ with left_col:
                 st.caption(desc)
                 avg_display = f"{avg:.4f}" if step < 1 else f"{avg:.0f}"
                 st.caption(f"*Population average: {avg_display}*")
-                slider_val = st.slider(label="", key=f"s_{key}", min_value=vmin, max_value=vmax, value=avg, step=step, label_visibility="collapsed")
-                num_val = st.number_input(label="Exact", key=f"n_{key}", min_value=vmin, max_value=vmax, value=slider_val, step=step, format="%.4f" if step < 1 else "%.0f")
+                slider_val = st.slider("", key=f"s_{key}", min_value=vmin, max_value=vmax, value=avg, step=step, label_visibility="collapsed")
+                num_val = st.number_input("Exact", key=f"n_{key}", min_value=vmin, max_value=vmax, value=slider_val, step=step, format="%.4f" if step < 1 else "%.0f")
                 if st.button(f"Reset {label}", key=f"reset_{key}"):
                     safe_reset(key, avg)
                 values[key] = num_val
