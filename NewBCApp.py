@@ -47,10 +47,18 @@ def load_model(path: Path):
 
 pipe = load_model(MODEL_PATH)
 
+# Fix for glitch + error in reset button
 def safe_reset(key, avg):
-    st.session_state[f"s_{key}"] = avg
-    st.session_state[f"n_{key}"] = avg
-    st.rerun()
+    try:
+        if f"s_{key}" in st.session_state:
+            del st.session_state[f"s_{key}"]
+        if f"n_{key}" in st.session_state:
+            del st.session_state[f"n_{key}"]
+        st.session_state[f"s_{key}"] = avg
+        st.session_state[f"n_{key}"] = avg
+        st.rerun()
+    except Exception as e:
+        st.warning(f"⚠️ Reset failed: {e}")
 
 st.title("Breast Cancer ML Classifier 🩺")
 st.caption(f"Model hold-out accuracy: {TEST_ACC:.1%}")
