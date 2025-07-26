@@ -41,7 +41,10 @@ FEATURE_GROUPS = {
     "Texture": ["mean texture"]
 }
 
-# Init state and reset handler
+# Session state init
+if "reset_trigger" not in st.session_state:
+    st.session_state.reset_trigger = None
+
 if "initialized" not in st.session_state:
     st.session_state.initialized = True
     for key in data.feature_names:
@@ -49,15 +52,14 @@ if "initialized" not in st.session_state:
         st.session_state[f"s_{key}"] = avg
         st.session_state[f"n_{key}"] = avg
 
-if "reset_trigger" not in st.session_state:
+# Apply reset if needed
+if st.session_state.reset_trigger is not None:
+    key = st.session_state.reset_trigger
+    if key in percentile_bounds:
+        _, _, _, avg = percentile_bounds[key]
+        st.session_state[f"s_{key}"] = avg
+        st.session_state[f"n_{key}"] = avg
     st.session_state.reset_trigger = None
-
-if st.session_state.reset_trigger:
-    reset_key = st.session_state.reset_trigger
-    _, _, _, avg = percentile_bounds[reset_key]
-    st.session_state[f"s_{reset_key}"] = avg
-    st.session_state[f"n_{reset_key}"] = avg
-    st.session_state.reset_trigger = None  # Clear flag
 
 # Sync logic
 def sync_slider(key):
@@ -66,7 +68,7 @@ def sync_slider(key):
 def sync_number_input(key):
     st.session_state[f"n_{key}"] = st.session_state[f"s_{key}"]
 
-# App UI
+# UI
 st.title("Breast Cancer ML Classifier 🩺")
 st.caption(f"Model hold-out accuracy: {TEST_ACC:.1%}")
 st.subheader("Adjust Tumor Characteristics")
