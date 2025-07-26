@@ -75,35 +75,52 @@ st.subheader("Adjust Tumor Characteristics")
 left_col, right_col = st.columns([1, 1], gap="large")
 
 with left_col:
-    values = {}
-    for group_title, keys in FEATURE_GROUPS.items():
-        st.markdown(f"### {group_title}")
-        cols = st.columns(len(keys))  # Always safe, even if just one
-        for col, key in zip(cols, keys):
-            with col:
-                low, high, step, avg = percentile_bounds[key]
-                st.markdown(f"<h4 style='margin-bottom:0.2rem'>{key.title()}</h4>", unsafe_allow_html=True)
-                st.caption(f"*Population average: {avg:.3f}*")
+    with st.container():
+        st.markdown(
+            """
+            <style>
+            .scrollbox {
+                max-height: 600px;
+                overflow-y: auto;
+                padding-right: 1rem;
+            }
+            </style>
+            <div class="scrollbox">
+            """,
+            unsafe_allow_html=True
+        )
 
-                st.slider(
-                    label="", key=f"s_{key}",
-                    min_value=float(low), max_value=float(high),
-                    step=float(step), label_visibility="collapsed",
-                    on_change=sync_number_input, args=(key,)
-                )
+        values = {}
+        for group_title, keys in FEATURE_GROUPS.items():
+            st.markdown(f"### {group_title}")
+            cols = st.columns(len(keys))  # Always safe
+            for col, key in zip(cols, keys):
+                with col:
+                    low, high, step, avg = percentile_bounds[key]
+                    st.markdown(f"<h4 style='margin-bottom:0.2rem'>{key.title()}</h4>", unsafe_allow_html=True)
+                    st.caption(f"*Population average: {avg:.3f}*")
 
-                st.number_input(
-                    label="Exact", key=f"n_{key}",
-                    min_value=float(low), max_value=float(high),
-                    step=float(step), format="%.4f" if step < 1 else "%.0f",
-                    on_change=sync_slider, args=(key,)
-                )
+                    st.slider(
+                        label="", key=f"s_{key}",
+                        min_value=float(low), max_value=float(high),
+                        step=float(step), label_visibility="collapsed",
+                        on_change=sync_number_input, args=(key,)
+                    )
 
-                if st.button(f"Reset {key.title()}", key=f"reset_{key}"):
-                    st.session_state.reset_trigger = key
-                    st.experimental_rerun()
+                    st.number_input(
+                        label="Exact", key=f"n_{key}",
+                        min_value=float(low), max_value=float(high),
+                        step=float(step), format="%.4f" if step < 1 else "%.0f",
+                        on_change=sync_slider, args=(key,)
+                    )
 
-                values[key] = st.session_state[f"n_{key}"]
+                    if st.button(f"Reset {key.title()}", key=f"reset_{key}"):
+                        st.session_state.reset_trigger = key
+                        st.experimental_rerun()
+
+                    values[key] = st.session_state[f"n_{key}"]
+
+        st.markdown("</div>", unsafe_allow_html=True)
 
 with right_col:
     st.subheader("Feature-Level Malignancy Likelihood")
