@@ -41,24 +41,23 @@ FEATURE_GROUPS = {
     "Texture": ["mean texture"]
 }
 
-# Session state init
+# Init session state
 if "reset_trigger" not in st.session_state:
     st.session_state.reset_trigger = None
 
-if "initialized" not in st.session_state:
-    st.session_state.initialized = True
-    for key in data.feature_names:
+for key in data.feature_names:
+    if f"s_{key}" not in st.session_state or f"n_{key}" not in st.session_state:
         _, _, _, avg = percentile_bounds[key]
         st.session_state[f"s_{key}"] = avg
         st.session_state[f"n_{key}"] = avg
 
-# Apply reset if needed
+# Handle reset (safely)
 if st.session_state.reset_trigger is not None:
-    key = st.session_state.reset_trigger
-    if key in percentile_bounds:
-        _, _, _, avg = percentile_bounds[key]
-        st.session_state[f"s_{key}"] = avg
-        st.session_state[f"n_{key}"] = avg
+    reset_key = st.session_state.reset_trigger
+    if reset_key in percentile_bounds:
+        _, _, _, avg = percentile_bounds[reset_key]
+        st.session_state[f"s_{reset_key}"] = avg
+        st.session_state[f"n_{reset_key}"] = avg
     st.session_state.reset_trigger = None
 
 # Sync logic
@@ -79,35 +78,9 @@ with left_col:
     values = {}
     for group_title, keys in FEATURE_GROUPS.items():
         st.markdown(f"### {group_title}")
-        if len(keys) == 2:
-            col1, col2 = st.columns(2, gap="medium")
-            for col, key in zip((col1, col2), keys):
-                with col:
-                    low, high, step, avg = percentile_bounds[key]
-                    st.markdown(f"<h4 style='margin-bottom:0.2rem'>{key.title()}</h4>", unsafe_allow_html=True)
-                    st.caption(f"*Population average: {avg:.3f}*")
-
-                    st.slider(
-                        label="", key=f"s_{key}",
-                        min_value=float(low), max_value=float(high),
-                        step=float(step), label_visibility="collapsed",
-                        on_change=sync_number_input, args=(key,)
-                    )
-
-                    st.number_input(
-                        label="Exact", key=f"n_{key}",
-                        min_value=float(low), max_value=float(high),
-                        step=float(step), format="%.4f" if step < 1 else "%.0f",
-                        on_change=sync_slider, args=(key,)
-                    )
-
-                    if st.button(f"Reset {key.title()}", key=f"reset_{key}"):
-                        st.session_state.reset_trigger = key
-                        st.experimental_rerun()
-
-                    values[key] = st.session_state[f"n_{key}"]
-        else:
-            for key in keys:
+        cols = st.columns(len(keys)) if len(keys) == 2 else [st]
+        for col, key in zip(cols, keys):
+            with col:
                 low, high, step, avg = percentile_bounds[key]
                 st.markdown(f"<h4 style='margin-bottom:0.2rem'>{key.title()}</h4>", unsafe_allow_html=True)
                 st.caption(f"*Population average: {avg:.3f}*")
