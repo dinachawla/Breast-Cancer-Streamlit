@@ -14,7 +14,7 @@ TEST_ACC = 0.965
 # Load dataset and model
 data = load_breast_cancer()
 df = pd.DataFrame(data.data, columns=data.feature_names)
-df['target'] = 1 - data.target  # Flip to match model
+df['target'] = 1 - data.target  # Flip to match model (0 = benign, 1 = malignant)
 
 SELECTED_FEATURES = [
     "mean radius", "worst radius",
@@ -81,7 +81,15 @@ st.subheader("Adjust Tumor Characteristics")
 
 left_col, right_col = st.columns([1, 1], gap="large")
 
+# LEFT COLUMN: Scrollable input panel
 with left_col:
+    st.markdown(
+        """
+        <div style="max-height: 800px; overflow-y: auto; padding-right: 10px;">
+        """,
+        unsafe_allow_html=True
+    )
+
     values = {}
     for group_title, keys in FEATURE_GROUPS.items():
         st.markdown(f"### {group_title}")
@@ -112,6 +120,9 @@ with left_col:
 
                 values[key] = st.session_state[f"n_{key}"]
 
+    st.markdown("</div>", unsafe_allow_html=True)
+
+# RIGHT COLUMN: Visual output + prediction
 with right_col:
     st.subheader("Feature-Level Malignancy Likelihood")
     likelihoods = []
