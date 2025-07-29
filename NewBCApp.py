@@ -40,7 +40,6 @@ for col in SELECTED_FEATURES:
     step = 0.001 if high - low < 10 else 0.1 if high - low < 100 else 1
     percentile_bounds[col] = (low, high, step, avg)
 
-# Define grouped features
 FEATURE_GROUPS = {
     "Radius (mm)": ["mean radius", "worst radius"],
     "Perimeter (mm)": ["mean perimeter", "worst perimeter"],
@@ -75,100 +74,108 @@ def sync_number_input(key):
     st.session_state[f"n_{key}"] = st.session_state[f"s_{key}"]
 
 # UI
-st.title("Breast Cancer ML Classifier 🩺")
-st.caption(f"Model hold-out accuracy: {TEST_ACC:.1%}")
-st.subheader("Adjust Tumor Characteristics")
+st.markdown(
+    """
+    <style>
+    .layout {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2rem;
+    }
+    .scroll-panel {
+        max-height: 800px;
+        overflow-y: scroll;
+        padding-right: 10px;
+        border-right: 1px solid #ccc;
+    }
+    </style>
+    <div class="layout">
+        <div class="scroll-panel">
+    """,
+    unsafe_allow_html=True
+)
 
-left_col, right_col = st.columns([1, 1], gap="large")
+# LEFT (Scroll-enabled)
+values = {}
+for group_title, keys in FEATURE_GROUPS.items():
+    st.markdown(f"### {group_title}")
+    cols = st.columns(len(keys))
+    for col, key in zip(cols, keys):
+        with col:
+            low, high, step, avg = percentile_bounds[key]
+            st.markdown(f"<h4 style='margin-bottom:0.2rem'>{key.title()}</h4>", unsafe_allow_html=True)
+            st.caption(f"*Population average: {avg:.3f}*")
 
-# LEFT COLUMN: Scrollable metrics section
-with left_col:
-    with st.container():
-        st.markdown(
-            """
-            <div style="max-height: 800px; overflow-y: auto; padding-right: 10px;">
-            """,
-            unsafe_allow_html=True
-        )
-        scroll_container = st.container()
-        st.markdown("</div>", unsafe_allow_html=True)
+            st.slider(
+                label="", key=f"s_{key}",
+                min_value=float(low), max_value=float(high),
+                step=float(step), label_visibility="collapsed",
+                on_change=sync_number_input, args=(key,)
+            )
 
-    with scroll_container:
-        values = {}
-        for group_title, keys in FEATURE_GROUPS.items():
-            st.markdown(f"### {group_title}")
-            cols = st.columns(len(keys))
-            for col, key in zip(cols, keys):
-                with col:
-                    low, high, step, avg = percentile_bounds[key]
-                    st.markdown(f"<h4 style='margin-bottom:0.2rem'>{key.title()}</h4>", unsafe_allow_html=True)
-                    st.caption(f"*Population average: {avg:.3f}*")
+            st.number_input(
+                label="Exact", key=f"n_{key}",
+                min_value=float(low), max_value=float(high),
+                step=float(step), format="%.4f" if step < 1 else "%.0f",
+                on_change=sync_slider, args=(key,)
+            )
 
-                    st.slider(
-                        label="", key=f"s_{key}",
-                        min_value=float(low), max_value=float(high),
-                        step=float(step), label_visibility="collapsed",
-                        on_change=sync_number_input, args=(key,)
-                    )
+            if st.button(f"Reset {key.title()}", key=f"reset_{key}"):
+                st.session_state.reset_trigger = key
+                st.experimental_rerun()
 
-                    st.number_input(
-                        label="Exact", key=f"n_{key}",
-                        min_value=float(low), max_value=float(high),
-                        step=float(step), format="%.4f" if step < 1 else "%.0f",
-                        on_change=sync_slider, args=(key,)
-                    )
+            values[key] = st.session_state[f"n_{key}"]
 
-                    if st.button(f"Reset {key.title()}", key=f"reset_{key}"):
-                        st.session_state.reset_trigger = key
-                        st.experimental_rerun()
+# Close scroll div, open right panel
+st.markdown("</div><div>", unsafe_allow_html=True)
 
-                    values[key] = st.session_state[f"n_{key}"]
+# RIGHT PANEL
+st.subheader("Feature-Level Malignancy Likelihood")
+likelihoods = []
+for feature, user_val in values.items():
+    margin = 0.05 * user_val
+    min_val = user_val - margin
+    max_val = user_val + margin
+    nearby_cases = df[(df[feature] >= min_val) & (df[feature] <= max_val)]
+    malignant_pct = 100 * nearby_cases['target'].mean() if not nearby_cases.empty else None
+    likelihoods.append((feature, user_val, malignant_pct, len(nearby_cases)))
 
-# RIGHT COLUMN: Malignancy chart + prediction
-with right_col:
-    st.subheader("Feature-Level Malignancy Likelihood")
-    likelihoods = []
-    for feature, user_val in values.items():
-        margin = 0.05 * user_val
-        min_val = user_val - margin
-        max_val = user_val + margin
-        nearby_cases = df[(df[feature] >= min_val) & (df[feature] <= max_val)]
-        malignant_pct = 100 * nearby_cases['target'].mean() if not nearby_cases.empty else None
-        likelihoods.append((feature, user_val, malignant_pct, len(nearby_cases)))
+likelihood_df = pd.DataFrame(likelihoods, columns=["Feature", "User Value", "% Malignant", "Cases in Range"])
+filtered_df = likelihood_df.dropna()
 
-    likelihood_df = pd.DataFrame(likelihoods, columns=["Feature", "User Value", "% Malignant", "Cases in Range"])
-    filtered_df = likelihood_df.dropna()
+if not filtered_df.empty:
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=filtered_df['Feature'],
+        y=filtered_df['% Malignant'],
+        mode='lines+markers+text',
+        name='% Malignant',
+        line=dict(color='crimson', width=3),
+        text=[f"{p:.1f}%" for p in filtered_df['% Malignant']],
+        textposition="top center"
+    ))
+    fig.update_layout(
+        xaxis_title='Tumor Feature',
+        yaxis_title='% of Similar Cases that were Malignant',
+        yaxis_range=[0, 100],
+        height=500,
+        margin=dict(l=10, r=10, t=10, b=40)
+    )
+    st.plotly_chart(fig, use_container_width=True)
+else:
+    st.info("Not enough data to show malignancy likelihood chart.")
 
-    if not filtered_df.empty:
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(
-            x=filtered_df['Feature'],
-            y=filtered_df['% Malignant'],
-            mode='lines+markers+text',
-            name='% Malignant',
-            line=dict(color='crimson', width=3),
-            text=[f"{p:.1f}%" for p in filtered_df['% Malignant']],
-            textposition="top center"
-        ))
-        fig.update_layout(
-            xaxis_title='Tumor Feature',
-            yaxis_title='% of Similar Cases that were Malignant',
-            yaxis_range=[0, 100],
-            height=500,
-            margin=dict(l=10, r=10, t=10, b=40)
-        )
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.info("Not enough data to show malignancy likelihood chart.")
+st.subheader("Diagnosis Estimate")
+ordered_keys = [k for keys in FEATURE_GROUPS.values() for k in keys]
+X = np.array([[values[k] for k in ordered_keys]])
+p = pipe.predict_proba(X)[0, 1]
 
-    st.subheader("Diagnosis Estimate")
-    ordered_keys = [k for keys in FEATURE_GROUPS.values() for k in keys]
-    X = np.array([[values[k] for k in ordered_keys]])
-    p = pipe.predict_proba(X)[0, 1]
+if p >= 0.5:
+    st.error(f"🚨 **MALIGNANT**  \nProbability: **{p:.1%}** (≈ {p*100:.0f} out of 100 similar cases)", icon="🚨")
+else:
+    st.success(f"🫰 **BENIGN**  \nProbability: **{1 - p:.1%}** (≈ {(1 - p)*100:.0f} out of 100 similar cases)", icon="✅")
 
-    if p >= 0.5:
-        st.error(f"🚨 **MALIGNANT**  \nProbability: **{p:.1%}** (≈ {p*100:.0f} out of 100 similar cases)", icon="🚨")
-    else:
-        st.success(f"🫰 **BENIGN**  \nProbability: **{1 - p:.1%}** (≈ {(1 - p)*100:.0f} out of 100 similar cases)", icon="✅")
+st.caption("Model is for educational use only and **does not replace professional medical advice.**")
 
-    st.caption("Model is for educational use only and **does not replace professional medical advice.**")
+# Close layout div
+st.markdown("</div></div>", unsafe_allow_html=True)
