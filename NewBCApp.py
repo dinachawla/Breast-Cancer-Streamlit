@@ -8,13 +8,22 @@ from sklearn.datasets import load_breast_cancer
 
 st.set_page_config(layout="wide")
 
-MODEL_PATH = Path("breast_cancer_pipe_corrected.pkl")
+MODEL_PATH = Path("breast_cancer_pipe_11features.pkl")
 TEST_ACC = 0.965
 
 # Load dataset and model
 data = load_breast_cancer()
 df = pd.DataFrame(data.data, columns=data.feature_names)
-df['target'] = 1 - data.target  # Flip to match new model (0 = benign, 1 = malignant)
+df['target'] = 1 - data.target  # Flip to match model
+
+SELECTED_FEATURES = [
+    "mean radius", "worst radius",
+    "mean perimeter", "worst perimeter",
+    "mean area", "worst area",
+    "mean concavity", "worst concavity",
+    "mean concave points", "worst concave points",
+    "mean texture"
+]
 
 @st.cache_resource
 def load_model(path: Path):
@@ -24,7 +33,7 @@ pipe = load_model(MODEL_PATH)
 
 # Compute percentiles
 percentile_bounds = {}
-for col in data.feature_names:
+for col in SELECTED_FEATURES:
     low = np.percentile(df[col], 5)
     high = np.percentile(df[col], 95)
     avg = df[col].mean()
@@ -45,7 +54,7 @@ FEATURE_GROUPS = {
 if "reset_trigger" not in st.session_state:
     st.session_state.reset_trigger = None
 
-for key in data.feature_names:
+for key in SELECTED_FEATURES:
     if f"s_{key}" not in st.session_state or f"n_{key}" not in st.session_state:
         _, _, _, avg = percentile_bounds[key]
         st.session_state[f"s_{key}"] = avg
@@ -142,7 +151,7 @@ with right_col:
     st.subheader("Diagnosis Estimate")
     ordered_keys = [k for keys in FEATURE_GROUPS.values() for k in keys]
     X = np.array([[values[k] for k in ordered_keys]])
-    p = pipe.predict_proba(X)[0, 1]  # p = probability of malignant (class 1)
+    p = pipe.predict_proba(X)[0, 1]
 
     if p >= 0.5:
         st.error(f"🚨 **MALIGNANT**  \nProbability: **{p:.1%}** (≈ {p*100:.0f} out of 100 similar cases)", icon="🚨")
