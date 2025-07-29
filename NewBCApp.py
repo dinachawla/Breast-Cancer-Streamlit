@@ -2,27 +2,46 @@ import streamlit as st
 import numpy as np
 import pandas as pd
 import joblib
+import plotly.graph_objects as go
 from pathlib import Path
 from sklearn.datasets import load_breast_cancer
-import plotly.graph_objects as go
 
 st.set_page_config(layout="wide")
 
-# Load model
 MODEL_PATH = Path("retrained_11_feature_model.pkl")
+TEST_ACC = 0.965
 
-@st.cache_resource
-def load_model(path):
-    return joblib.load(path)
-
-pipe = load_model(MODEL_PATH)
-
-# Load dataset
+# Load dataset and model
 data = load_breast_cancer()
 df = pd.DataFrame(data.data, columns=data.feature_names)
 df['target'] = data.target
 
-# Select only the 11 used features
+@st.cache_resource
+def load_model(path: Path):
+    return joblib.load(path)
+
+pipe = load_model(MODEL_PATH)
+
+# Use only the selected features
+SELECTED_FEATURES = [
+    "mean radius", "worst radius",
+    "mean perimeter", "worst perimeter",
+    "mean area", "worst area",
+    "mean concavity", "worst concavity",
+    "mean concave points", "worst concave points",
+    "mean texture"
+]
+
+# Compute percentiles
+percentile_bounds = {}
+for col in SELECTED_FEATURES:
+    low = np.percentile(df[col], 5)
+    high = np.percentile(df[col], 95)
+    avg = df[col].mean()
+    step = 0.001 if high - low < 10 else 0.1 if high - low < 100 else 1
+    percentile_bounds[col] = (low, high, step, avg)
+
+# Group features for layout
 FEATURE_GROUPS = {
     "Radius (mm)": ["mean radius", "worst radius"],
     "Perimeter (mm)": ["mean perimeter", "worst perimeter"],
@@ -32,34 +51,23 @@ FEATURE_GROUPS = {
     "Texture": ["mean texture"]
 }
 
-SELECTED_FEATURES = [f for group in FEATURE_GROUPS.values() for f in group]
-
-# Build slider bounds
-percentile_bounds = {}
-for col in SELECTED_FEATURES:
-    low = np.percentile(df[col], 5)
-    high = np.percentile(df[col], 95)
-    avg = df[col].mean()
-    step = 0.001 if high - low < 10 else 0.1 if high - low < 100 else 1
-    percentile_bounds[col] = (low, high, step, avg)
-
-# Init session state
+# Initialize session state
 for key in SELECTED_FEATURES:
     if f"s_{key}" not in st.session_state or f"n_{key}" not in st.session_state:
         _, _, _, avg = percentile_bounds[key]
         st.session_state[f"s_{key}"] = avg
         st.session_state[f"n_{key}"] = avg
 
-# Sync functions
+# Sync logic
 def sync_slider(key):
     st.session_state[f"s_{key}"] = st.session_state[f"n_{key}"]
 
 def sync_number_input(key):
     st.session_state[f"n_{key}"] = st.session_state[f"s_{key}"]
 
-# Layout
+# UI
 st.title("Breast Cancer ML Classifier 🩺")
-st.caption("Model hold-out accuracy: 95.6%")
+st.caption(f"Model hold-out accuracy: {TEST_ACC:.1%}")
 st.subheader("Adjust Tumor Characteristics")
 
 left_col, right_col = st.columns([1, 1], gap="large")
@@ -74,27 +82,25 @@ with left_col:
                 low, high, step, avg = percentile_bounds[key]
                 st.markdown(f"<h4 style='margin-bottom:0.2rem'>{key.title()}</h4>", unsafe_allow_html=True)
                 st.caption(f"*Population average: {avg:.3f}*")
+
                 st.slider(
                     label="", key=f"s_{key}",
                     min_value=float(low), max_value=float(high),
                     step=float(step), label_visibility="collapsed",
                     on_change=sync_number_input, args=(key,)
                 )
+
                 st.number_input(
                     label="Exact", key=f"n_{key}",
                     min_value=float(low), max_value=float(high),
                     step=float(step), format="%.4f" if step < 1 else "%.0f",
                     on_change=sync_slider, args=(key,)
                 )
+
                 values[key] = st.session_state[f"n_{key}"]
 
 with right_col:
-    st.markdown("""
-    <div style="position:sticky; top:0; background-color:#0e1117; padding:1rem 1rem 0 1rem; z-index:99">
-    <h2 style="margin-bottom:0.5rem">Feature-Level Malignancy Likelihood</h2>
-    <p style="margin-top:0; font-weight:500">Estimated Malignancy Likelihood per Feature</p>
-    """, unsafe_allow_html=True)
-
+    st.subheader("Feature-Level Malignancy Likelihood")
     likelihoods = []
     for feature, user_val in values.items():
         margin = 0.05 * user_val
@@ -128,14 +134,13 @@ with right_col:
         st.plotly_chart(fig, use_container_width=True)
     else:
         st.info("Not enough data to show malignancy likelihood chart.")
-    st.markdown("</div>", unsafe_allow_html=True)
 
     st.subheader("Diagnosis Estimate")
-    X = np.array([[values[k] for k in SELECTED_FEATURES]])
-    p = pipe.predict_proba(X)[0, 1]
+    X_input = np.array([[values[k] for k in SELECTED_FEATURES]])
+    p = pipe.predict_proba(X_input)[0, 1]
     if p >= 0.5:
         st.error(f"🚨 **MALIGNANT**  \nProbability: **{p:.1%}** (≈ {p*100:.0f} out of 100 similar cases)", icon="🚨")
     else:
-        st.success(f"🫰 **BENIGN**  \nProbability: **{1-p:.1%}** (≈ {(1-p)*100:.0f} out of 100 similar cases)", icon="✅")
+        st.success(f"🩺 **BENIGN**  \nProbability: **{1-p:.1%}** (≈ {(1-p)*100:.0f} out of 100 similar cases)", icon="✅")
 
     st.caption("Model is for educational use only and **does not replace professional medical advice.**")
