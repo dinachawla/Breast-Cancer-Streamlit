@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import numpy as np
 import pandas as pd
 import joblib
@@ -77,56 +78,61 @@ def sync_number_input(key):
 st.title("Breast Cancer ML Classifier 🩺")
 st.caption(f"Model hold-out accuracy: {TEST_ACC:.1%}")
 
-# Columns
+# Layout
 left_col, right_col = st.columns([1, 1], gap="large")
 
-# --- LEFT COLUMN (Scrollable Input Panel) ---
+# LEFT COLUMN with custom scroll box using components.html spacer
 with left_col:
     st.markdown(
         """
         <style>
-        div[data-testid="stExpander"] > div:first-child {
+        .scrollbox {
+            max-height: 680px;
             overflow-y: auto;
-            max-height: 720px;
             padding-right: 12px;
         }
         </style>
         """,
         unsafe_allow_html=True
     )
+    
+    # Start scrollbox
+    components.html('<div class="scrollbox" style="height:680px; overflow-y:auto;">', height=0)
 
-    with st.expander("Adjust Tumor Characteristics", expanded=True):
-        values = {}
-        for group_title, keys in FEATURE_GROUPS.items():
-            st.markdown(f"### {group_title}")
-            cols = st.columns(len(keys))
-            for col, key in zip(cols, keys):
-                with col:
-                    low, high, step, avg = percentile_bounds[key]
-                    st.markdown(f"<h4 style='margin-bottom:0.2rem'>{key.title()}</h4>", unsafe_allow_html=True)
-                    st.caption(f"*Population average: {avg:.3f}*")
+    values = {}
+    for group_title, keys in FEATURE_GROUPS.items():
+        st.markdown(f"### {group_title}")
+        cols = st.columns(len(keys))
+        for col, key in zip(cols, keys):
+            with col:
+                low, high, step, avg = percentile_bounds[key]
+                st.markdown(f"<h4 style='margin-bottom:0.2rem'>{key.title()}</h4>", unsafe_allow_html=True)
+                st.caption(f"*Population average: {avg:.3f}*")
 
-                    st.slider(
-                        label="", key=f"s_{key}",
-                        min_value=float(low), max_value=float(high),
-                        step=float(step), label_visibility="collapsed",
-                        on_change=sync_number_input, args=(key,)
-                    )
+                st.slider(
+                    label="", key=f"s_{key}",
+                    min_value=float(low), max_value=float(high),
+                    step=float(step), label_visibility="collapsed",
+                    on_change=sync_number_input, args=(key,)
+                )
 
-                    st.number_input(
-                        label="Exact", key=f"n_{key}",
-                        min_value=float(low), max_value=float(high),
-                        step=float(step), format="%.4f" if step < 1 else "%.0f",
-                        on_change=sync_slider, args=(key,)
-                    )
+                st.number_input(
+                    label="Exact", key=f"n_{key}",
+                    min_value=float(low), max_value=float(high),
+                    step=float(step), format="%.4f" if step < 1 else "%.0f",
+                    on_change=sync_slider, args=(key,)
+                )
 
-                    if st.button(f"Reset {key.title()}", key=f"reset_{key}"):
-                        st.session_state.reset_trigger = key
-                        st.experimental_rerun()
+                if st.button(f"Reset {key.title()}", key=f"reset_{key}"):
+                    st.session_state.reset_trigger = key
+                    st.experimental_rerun()
 
-                    values[key] = st.session_state[f"n_{key}"]
+                values[key] = st.session_state[f"n_{key}"]
 
-# --- RIGHT COLUMN (Graph + Diagnosis) ---
+    # End scrollbox
+    components.html("</div>", height=0)
+
+# RIGHT COLUMN
 with right_col:
     st.subheader("Feature-Level Malignancy Likelihood")
     likelihoods = []
