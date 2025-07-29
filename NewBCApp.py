@@ -1,5 +1,4 @@
 import streamlit as st
-import streamlit.components.v1 as components
 import numpy as np
 import pandas as pd
 import joblib
@@ -77,31 +76,26 @@ def sync_number_input(key):
 # UI
 st.title("Breast Cancer ML Classifier 🩺")
 st.caption(f"Model hold-out accuracy: {TEST_ACC:.1%}")
-st.subheader("Adjust Tumor Characteristics")
 
 # Columns
 left_col, right_col = st.columns([1, 1], gap="large")
 
-# LEFT (SCROLLABLE input section using widget container)
+# --- LEFT COLUMN (Scrollable Input Panel) ---
 with left_col:
     st.markdown(
         """
         <style>
-        .scroll-wrap {
-            max-height: 700px;
-            overflow-y: scroll;
-            padding-right: 10px;
+        div[data-testid="stExpander"] > div:first-child {
+            overflow-y: auto;
+            max-height: 720px;
+            padding-right: 12px;
         }
         </style>
-        <div class="scroll-wrap">
         """,
         unsafe_allow_html=True
     )
 
-    scroll_container = st.container()
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    with scroll_container:
+    with st.expander("Adjust Tumor Characteristics", expanded=True):
         values = {}
         for group_title, keys in FEATURE_GROUPS.items():
             st.markdown(f"### {group_title}")
@@ -132,7 +126,7 @@ with left_col:
 
                     values[key] = st.session_state[f"n_{key}"]
 
-# RIGHT COLUMN (Diagnosis + Graph)
+# --- RIGHT COLUMN (Graph + Diagnosis) ---
 with right_col:
     st.subheader("Feature-Level Malignancy Likelihood")
     likelihoods = []
