@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import numpy as np
 import pandas as pd
 import joblib
@@ -14,7 +15,7 @@ TEST_ACC = 0.965
 # Load dataset and model
 data = load_breast_cancer()
 df = pd.DataFrame(data.data, columns=data.feature_names)
-df['target'] = 1 - data.target  # Flip to match model (0 = benign, 1 = malignant)
+df['target'] = 1 - data.target  # Flip to match model
 
 SELECTED_FEATURES = [
     "mean radius", "worst radius",
@@ -78,57 +79,60 @@ st.title("Breast Cancer ML Classifier 🩺")
 st.caption(f"Model hold-out accuracy: {TEST_ACC:.1%}")
 st.subheader("Adjust Tumor Characteristics")
 
+# Columns
 left_col, right_col = st.columns([1, 1], gap="large")
 
-# LEFT COLUMN (with scrollable container)
+# LEFT (SCROLLABLE input section using widget container)
 with left_col:
     st.markdown(
         """
         <style>
-        .scroll-box {
-            max-height: 750px;
-            overflow-y: auto;
-            padding-right: 12px;
+        .scroll-wrap {
+            max-height: 700px;
+            overflow-y: scroll;
+            padding-right: 10px;
         }
         </style>
-        <div class="scroll-box">
+        <div class="scroll-wrap">
         """,
         unsafe_allow_html=True
     )
 
-    values = {}
-    for group_title, keys in FEATURE_GROUPS.items():
-        st.markdown(f"### {group_title}")
-        cols = st.columns(len(keys))
-        for col, key in zip(cols, keys):
-            with col:
-                low, high, step, avg = percentile_bounds[key]
-                st.markdown(f"<h4 style='margin-bottom:0.2rem'>{key.title()}</h4>", unsafe_allow_html=True)
-                st.caption(f"*Population average: {avg:.3f}*")
-
-                st.slider(
-                    label="", key=f"s_{key}",
-                    min_value=float(low), max_value=float(high),
-                    step=float(step), label_visibility="collapsed",
-                    on_change=sync_number_input, args=(key,)
-                )
-
-                st.number_input(
-                    label="Exact", key=f"n_{key}",
-                    min_value=float(low), max_value=float(high),
-                    step=float(step), format="%.4f" if step < 1 else "%.0f",
-                    on_change=sync_slider, args=(key,)
-                )
-
-                if st.button(f"Reset {key.title()}", key=f"reset_{key}"):
-                    st.session_state.reset_trigger = key
-                    st.experimental_rerun()
-
-                values[key] = st.session_state[f"n_{key}"]
-
+    scroll_container = st.container()
     st.markdown("</div>", unsafe_allow_html=True)
 
-# RIGHT COLUMN (graph + diagnosis)
+    with scroll_container:
+        values = {}
+        for group_title, keys in FEATURE_GROUPS.items():
+            st.markdown(f"### {group_title}")
+            cols = st.columns(len(keys))
+            for col, key in zip(cols, keys):
+                with col:
+                    low, high, step, avg = percentile_bounds[key]
+                    st.markdown(f"<h4 style='margin-bottom:0.2rem'>{key.title()}</h4>", unsafe_allow_html=True)
+                    st.caption(f"*Population average: {avg:.3f}*")
+
+                    st.slider(
+                        label="", key=f"s_{key}",
+                        min_value=float(low), max_value=float(high),
+                        step=float(step), label_visibility="collapsed",
+                        on_change=sync_number_input, args=(key,)
+                    )
+
+                    st.number_input(
+                        label="Exact", key=f"n_{key}",
+                        min_value=float(low), max_value=float(high),
+                        step=float(step), format="%.4f" if step < 1 else "%.0f",
+                        on_change=sync_slider, args=(key,)
+                    )
+
+                    if st.button(f"Reset {key.title()}", key=f"reset_{key}"):
+                        st.session_state.reset_trigger = key
+                        st.experimental_rerun()
+
+                    values[key] = st.session_state[f"n_{key}"]
+
+# RIGHT COLUMN (Diagnosis + Graph)
 with right_col:
     st.subheader("Feature-Level Malignancy Likelihood")
     likelihoods = []
