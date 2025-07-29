@@ -44,8 +44,8 @@ FEATURE_GROUPS = {
 # Session setup
 if "reset_trigger" not in st.session_state:
     st.session_state.reset_trigger = None
-if "run_diagnosis" not in st.session_state:
-    st.session_state.run_diagnosis = False
+if "diagnosis_result" not in st.session_state:
+    st.session_state.diagnosis_result = None
 
 # Initialize inputs
 for key in data.feature_names:
@@ -155,13 +155,15 @@ with right_col:
 
     # DIAGNOSIS
     st.subheader("Diagnosis Estimate")
-    if st.button("Run Diagnosis"):
-        st.session_state.run_diagnosis = True
 
-    if st.session_state.run_diagnosis:
+    if st.button("Run Diagnosis"):
         ordered_keys = [k for k in data.feature_names]
         X = np.array([[st.session_state[f"n_{k}"] for k in ordered_keys]])
         p = pipe.predict_proba(X)[0, 1]
+        st.session_state.diagnosis_result = p
+
+    if st.session_state.diagnosis_result is not None:
+        p = st.session_state.diagnosis_result
         if p >= 0.5:
             st.error(f"🚨 **MALIGNANT**  \nProbability: **{p:.1%}** (≈ {p*100:.0f} out of 100 similar cases)", icon="🚨")
         else:
