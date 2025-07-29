@@ -131,8 +131,7 @@ with left_col:
                 values[key] = st.session_state[f"n_{key}"]
 
 with right_col:
-    with st.container():
-        st.markdown('<div class="sticky-right">', unsafe_allow_html=True)
+    with st.container(key="sticky-right-column-container"):
 
         st.subheader("Feature-Level Malignancy Likelihood")
         likelihoods = []
