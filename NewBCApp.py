@@ -1,5 +1,4 @@
 import streamlit as st
-import streamlit.components.v1 as components
 import numpy as np
 import pandas as pd
 import joblib
@@ -8,6 +7,24 @@ from pathlib import Path
 from sklearn.datasets import load_breast_cancer
 
 st.set_page_config(layout="wide")
+
+# Add sticky CSS for right column
+st.markdown(
+    """
+    <style>
+    .sticky-right {
+        position: -webkit-sticky;
+        position: sticky;
+        top: 1rem;
+        align-self: start;
+        z-index: 1;
+        background-color: white;
+        padding-top: 0.5rem;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
 MODEL_PATH = Path("breast_cancer_pipe_11features.pkl")
 TEST_ACC = 0.965
@@ -41,6 +58,7 @@ for col in SELECTED_FEATURES:
     step = 0.001 if high - low < 10 else 0.1 if high - low < 100 else 1
     percentile_bounds[col] = (low, high, step, avg)
 
+# Define grouped features
 FEATURE_GROUPS = {
     "Radius (mm)": ["mean radius", "worst radius"],
     "Perimeter (mm)": ["mean perimeter", "worst perimeter"],
@@ -77,28 +95,11 @@ def sync_number_input(key):
 # UI
 st.title("Breast Cancer ML Classifier 🩺")
 st.caption(f"Model hold-out accuracy: {TEST_ACC:.1%}")
+st.subheader("Adjust Tumor Characteristics")
 
-# Layout
 left_col, right_col = st.columns([1, 1], gap="large")
 
-# LEFT COLUMN with custom scroll box using components.html spacer
 with left_col:
-    st.markdown(
-        """
-        <style>
-        .scrollbox {
-            max-height: 680px;
-            overflow-y: auto;
-            padding-right: 12px;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-    
-    # Start scrollbox
-    components.html('<div class="scrollbox" style="height:680px; overflow-y:auto;">', height=0)
-
     values = {}
     for group_title, keys in FEATURE_GROUPS.items():
         st.markdown(f"### {group_title}")
@@ -129,54 +130,55 @@ with left_col:
 
                 values[key] = st.session_state[f"n_{key}"]
 
-    # End scrollbox
-    components.html("</div>", height=0)
-
-# RIGHT COLUMN
 with right_col:
-    st.subheader("Feature-Level Malignancy Likelihood")
-    likelihoods = []
-    for feature, user_val in values.items():
-        margin = 0.05 * user_val
-        min_val = user_val - margin
-        max_val = user_val + margin
-        nearby_cases = df[(df[feature] >= min_val) & (df[feature] <= max_val)]
-        malignant_pct = 100 * nearby_cases['target'].mean() if not nearby_cases.empty else None
-        likelihoods.append((feature, user_val, malignant_pct, len(nearby_cases)))
+    with st.container():
+        st.markdown('<div class="sticky-right">', unsafe_allow_html=True)
 
-    likelihood_df = pd.DataFrame(likelihoods, columns=["Feature", "User Value", "% Malignant", "Cases in Range"])
-    filtered_df = likelihood_df.dropna()
+        st.subheader("Feature-Level Malignancy Likelihood")
+        likelihoods = []
+        for feature, user_val in values.items():
+            margin = 0.05 * user_val
+            min_val = user_val - margin
+            max_val = user_val + margin
+            nearby_cases = df[(df[feature] >= min_val) & (df[feature] <= max_val)]
+            malignant_pct = 100 * nearby_cases['target'].mean() if not nearby_cases.empty else None
+            likelihoods.append((feature, user_val, malignant_pct, len(nearby_cases)))
 
-    if not filtered_df.empty:
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(
-            x=filtered_df['Feature'],
-            y=filtered_df['% Malignant'],
-            mode='lines+markers+text',
-            name='% Malignant',
-            line=dict(color='crimson', width=3),
-            text=[f"{p:.1f}%" for p in filtered_df['% Malignant']],
-            textposition="top center"
-        ))
-        fig.update_layout(
-            xaxis_title='Tumor Feature',
-            yaxis_title='% of Similar Cases that were Malignant',
-            yaxis_range=[0, 100],
-            height=500,
-            margin=dict(l=10, r=10, t=10, b=40)
-        )
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.info("Not enough data to show malignancy likelihood chart.")
+        likelihood_df = pd.DataFrame(likelihoods, columns=["Feature", "User Value", "% Malignant", "Cases in Range"])
+        filtered_df = likelihood_df.dropna()
 
-    st.subheader("Diagnosis Estimate")
-    ordered_keys = [k for keys in FEATURE_GROUPS.values() for k in keys]
-    X = np.array([[values[k] for k in ordered_keys]])
-    p = pipe.predict_proba(X)[0, 1]
+        if not filtered_df.empty:
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(
+                x=filtered_df['Feature'],
+                y=filtered_df['% Malignant'],
+                mode='lines+markers+text',
+                name='% Malignant',
+                line=dict(color='crimson', width=3),
+                text=[f"{p:.1f}%" for p in filtered_df['% Malignant']],
+                textposition="top center"
+            ))
+            fig.update_layout(
+                xaxis_title='Tumor Feature',
+                yaxis_title='% of Similar Cases that were Malignant',
+                yaxis_range=[0, 100],
+                height=500,
+                margin=dict(l=10, r=10, t=10, b=40)
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("Not enough data to show malignancy likelihood chart.")
 
-    if p >= 0.5:
-        st.error(f"🚨 **MALIGNANT**  \nProbability: **{p:.1%}** (≈ {p*100:.0f} out of 100 similar cases)", icon="🚨")
-    else:
-        st.success(f"🫰 **BENIGN**  \nProbability: **{1 - p:.1%}** (≈ {(1 - p)*100:.0f} out of 100 similar cases)", icon="✅")
+        st.subheader("Diagnosis Estimate")
+        ordered_keys = [k for keys in FEATURE_GROUPS.values() for k in keys]
+        X = np.array([[values[k] for k in ordered_keys]])
+        p = pipe.predict_proba(X)[0, 1]
 
-    st.caption("Model is for educational use only and **does not replace professional medical advice.**")
+        if p >= 0.5:
+            st.error(f"🚨 **MALIGNANT**  \nProbability: **{p:.1%}** (≈ {p*100:.0f} out of 100 similar cases)", icon="🚨")
+        else:
+            st.success(f"🫰 **BENIGN**  \nProbability: **{1 - p:.1%}** (≈ {(1 - p)*100:.0f} out of 100 similar cases)", icon="✅")
+
+        st.caption("Model is for educational use only and **does not replace professional medical advice.**")
+
+        st.markdown('</div>', unsafe_allow_html=True)
