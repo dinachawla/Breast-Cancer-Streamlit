@@ -44,12 +44,14 @@ FEATURE_GROUPS = {
 if "reset_trigger" not in st.session_state:
     st.session_state.reset_trigger = None
 
+# Initialize session state for all features
 for key in data.feature_names:
     if f"s_{key}" not in st.session_state or f"n_{key}" not in st.session_state:
         _, _, _, avg = percentile_bounds[key]
         st.session_state[f"s_{key}"] = avg
         st.session_state[f"n_{key}"] = avg
 
+# Handle reset button
 if st.session_state.reset_trigger is not None:
     reset_key = st.session_state.reset_trigger
     if reset_key in percentile_bounds:
@@ -58,6 +60,7 @@ if st.session_state.reset_trigger is not None:
         st.session_state[f"n_{reset_key}"] = avg
     st.session_state.reset_trigger = None
 
+# Sync slider and number input
 def sync_slider(key):
     st.session_state[f"s_{key}"] = st.session_state[f"n_{key}"]
 
@@ -146,8 +149,9 @@ with right_col:
     st.markdown("</div>", unsafe_allow_html=True)
 
     st.subheader("Diagnosis Estimate")
-    ordered_keys = [k for keys in FEATURE_GROUPS.values() for k in keys]
-    X = np.array([[values[k] for k in ordered_keys]])
+    # ✅ FIX: Use all 30 features in original training order
+    ordered_keys = list(data.feature_names)
+    X = np.array([[st.session_state[f"n_{k}"] for k in ordered_keys]])
     p = pipe.predict_proba(X)[0, 1]
     if p >= 0.5:
         st.error(f"🚨 **MALIGNANT**  \nProbability: **{p:.1%}** (≈ {p*100:.0f} out of 100 similar cases)", icon="🚨")
