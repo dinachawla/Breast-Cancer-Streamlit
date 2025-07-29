@@ -22,7 +22,7 @@ def load_model(path: Path):
 
 pipe = load_model(MODEL_PATH)
 
-# Percentile bounds
+# Compute percentiles
 percentile_bounds = {}
 for col in data.feature_names:
     low = np.percentile(df[col], 5)
@@ -31,7 +31,7 @@ for col in data.feature_names:
     step = 0.001 if high - low < 10 else 0.1 if high - low < 100 else 1
     percentile_bounds[col] = (low, high, step, avg)
 
-# Grouped features
+# Grouping features
 FEATURE_GROUPS = {
     "Radius (mm)": ["mean radius", "worst radius"],
     "Perimeter (mm)": ["mean perimeter", "worst perimeter"],
@@ -41,44 +41,31 @@ FEATURE_GROUPS = {
     "Texture": ["mean texture"]
 }
 
-# Session setup
-if "reset_trigger" not in st.session_state:
-    st.session_state.reset_trigger = None
-if "diagnosis_result" not in st.session_state:
-    st.session_state.diagnosis_result = None
-
-# Initialize inputs
+# Initialize session state
 for key in data.feature_names:
     if f"s_{key}" not in st.session_state or f"n_{key}" not in st.session_state:
         _, _, _, avg = percentile_bounds[key]
         st.session_state[f"s_{key}"] = avg
         st.session_state[f"n_{key}"] = avg
 
-# Reset
-if st.session_state.reset_trigger:
-    reset_key = st.session_state.reset_trigger
-    _, _, _, avg = percentile_bounds[reset_key]
-    st.session_state[f"s_{reset_key}"] = avg
-    st.session_state[f"n_{reset_key}"] = avg
-    st.session_state.reset_trigger = None
+if "diagnosis_result" not in st.session_state:
+    st.session_state.diagnosis_result = None
 
-# Sync
 def sync_slider(key):
     st.session_state[f"s_{key}"] = st.session_state[f"n_{key}"]
 
 def sync_number_input(key):
     st.session_state[f"n_{key}"] = st.session_state[f"s_{key}"]
 
-# UI
 st.title("Breast Cancer ML Classifier 🩺")
 st.caption(f"Model hold-out accuracy: {TEST_ACC:.1%}")
 st.subheader("Adjust Tumor Characteristics")
 
 left_col, right_col = st.columns([1, 1], gap="large")
 
-# LEFT panel
+values = {}
+
 with left_col:
-    values = {}
     for group_title, keys in FEATURE_GROUPS.items():
         st.markdown(f"### {group_title}")
         cols = st.columns(len(keys))
@@ -102,21 +89,10 @@ with left_col:
                     on_change=sync_slider, args=(key,)
                 )
 
-                if st.button(f"Reset {key.title()}", key=f"reset_{key}"):
-                    st.session_state.reset_trigger = key
-                    st.experimental_rerun()
-
                 values[key] = st.session_state[f"n_{key}"]
 
-# RIGHT panel
 with right_col:
-    st.markdown("""
-    <div style="position:sticky; top:0; background-color:#0e1117; padding:1rem 1rem 0 1rem; z-index:99">
-    <h2 style="margin-bottom:0.5rem">Feature-Level Malignancy Likelihood</h2>
-    <p style="margin-top:0; font-weight:500">Estimated Malignancy Likelihood per Feature</p>
-    """, unsafe_allow_html=True)
-
-    # Likelihood Chart
+    st.subheader("Feature-Level Malignancy Likelihood")
     likelihoods = []
     for feature, user_val in values.items():
         margin = 0.05 * user_val
@@ -126,8 +102,7 @@ with right_col:
         malignant_pct = 100 * (1 - nearby_cases['target'].mean()) if not nearby_cases.empty else None
         likelihoods.append((feature, user_val, malignant_pct, len(nearby_cases)))
 
-    likelihood_df = pd.DataFrame(likelihoods, columns=["Feature", "User Value", "% Malignant", "Cases in Range"])
-    filtered_df = likelihood_df.dropna()
+    filtered_df = pd.DataFrame(likelihoods, columns=["Feature", "User Value", "% Malignant", "Cases in Range"]).dropna()
 
     if not filtered_df.empty:
         fig = go.Figure()
@@ -145,20 +120,16 @@ with right_col:
             yaxis_title='% of Similar Cases that were Malignant',
             yaxis_range=[0, 100],
             height=500,
-            margin=dict(l=10, r=10, t=10, b=40)
+            margin=dict(l=10, r=10, t=40, b=40)
         )
         st.plotly_chart(fig, use_container_width=True)
     else:
         st.info("Not enough data to show malignancy likelihood chart.")
 
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    # DIAGNOSIS
     st.subheader("Diagnosis Estimate")
-
     if st.button("Run Diagnosis"):
-        ordered_keys = [k for k in data.feature_names]
-        X = np.array([[st.session_state[f"n_{k}"] for k in ordered_keys]])
+        ordered_keys = [k for keys in FEATURE_GROUPS.values() for k in keys]
+        X = np.array([[values[k] for k in ordered_keys]])
         p = pipe.predict_proba(X)[0, 1]
         st.session_state.diagnosis_result = p
 
@@ -167,6 +138,6 @@ with right_col:
         if p >= 0.5:
             st.error(f"🚨 **MALIGNANT**  \nProbability: **{p:.1%}** (≈ {p*100:.0f} out of 100 similar cases)", icon="🚨")
         else:
-            st.success(f"🫰 **BENIGN**  \nProbability: **{1-p:.1%}** (≈ {(1-p)*100:.0f} out of 100 similar cases)", icon="✅")
+            st.success(f"✅ **BENIGN**  \nProbability: **{1-p:.1%}** (≈ {(1-p)*100:.0f} out of 100 similar cases)", icon="✅")
 
     st.caption("Model is for educational use only and **does not replace professional medical advice.**")
