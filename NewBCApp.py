@@ -11,18 +11,19 @@ st.set_page_config(layout="wide")
 MODEL_PATH = Path("breast_cancer_pipe_updated.pkl")
 TEST_ACC = 0.965
 
-# Load dataset and model
-data = load_breast_cancer()
-df = pd.DataFrame(data.data, columns=data.feature_names)
-df['target'] = data.target
-
+# Load model
 @st.cache_resource
 def load_model(path: Path):
     return joblib.load(path)
 
 pipe = load_model(MODEL_PATH)
 
-# Compute percentiles
+# Load data
+data = load_breast_cancer()
+df = pd.DataFrame(data.data, columns=data.feature_names)
+df['target'] = data.target
+
+# Percentile bounds
 percentile_bounds = {}
 for col in data.feature_names:
     low = np.percentile(df[col], 5)
@@ -31,7 +32,6 @@ for col in data.feature_names:
     step = 0.001 if high - low < 10 else 0.1 if high - low < 100 else 1
     percentile_bounds[col] = (low, high, step, avg)
 
-# Define grouped features
 FEATURE_GROUPS = {
     "Radius (mm)": ["mean radius", "worst radius"],
     "Perimeter (mm)": ["mean perimeter", "worst perimeter"],
@@ -41,28 +41,28 @@ FEATURE_GROUPS = {
     "Texture": ["mean texture"]
 }
 
+# Init session state
 if "reset_trigger" not in st.session_state:
     st.session_state.reset_trigger = None
+if "diagnosis_clicked" not in st.session_state:
+    st.session_state.diagnosis_clicked = False
 if "diagnosis_result" not in st.session_state:
     st.session_state.diagnosis_result = None
 
-# Initialize session state for all features
 for key in data.feature_names:
     if f"s_{key}" not in st.session_state or f"n_{key}" not in st.session_state:
         _, _, _, avg = percentile_bounds[key]
         st.session_state[f"s_{key}"] = avg
         st.session_state[f"n_{key}"] = avg
 
-# Handle reset button
 if st.session_state.reset_trigger is not None:
     reset_key = st.session_state.reset_trigger
-    if reset_key in percentile_bounds:
-        _, _, _, avg = percentile_bounds[reset_key]
-        st.session_state[f"s_{reset_key}"] = avg
-        st.session_state[f"n_{reset_key}"] = avg
+    _, _, _, avg = percentile_bounds[reset_key]
+    st.session_state[f"s_{reset_key}"] = avg
+    st.session_state[f"n_{reset_key}"] = avg
     st.session_state.reset_trigger = None
 
-# Sync slider and number input
+# Sync
 def sync_slider(key):
     st.session_state[f"s_{key}"] = st.session_state[f"n_{key}"]
 
@@ -153,12 +153,13 @@ with right_col:
     st.subheader("Diagnosis Estimate")
 
     if st.button("Run Diagnosis"):
+        st.session_state.diagnosis_clicked = True
         ordered_keys = list(data.feature_names)
         X = np.array([[st.session_state[f"n_{k}"] for k in ordered_keys]])
         p = pipe.predict_proba(X)[0, 1]
         st.session_state.diagnosis_result = p
 
-    if st.session_state.diagnosis_result is not None:
+    if st.session_state.diagnosis_clicked and st.session_state.diagnosis_result is not None:
         p = st.session_state.diagnosis_result
         if p >= 0.5:
             st.error(f"🚨 **MALIGNANT**  \nProbability: **{p:.1%}** (≈ {p*100:.0f} out of 100 similar cases)", icon="🚨")
