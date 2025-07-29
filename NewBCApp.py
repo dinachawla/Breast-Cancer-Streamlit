@@ -43,6 +43,8 @@ FEATURE_GROUPS = {
 
 if "reset_trigger" not in st.session_state:
     st.session_state.reset_trigger = None
+if "diagnosis_result" not in st.session_state:
+    st.session_state.diagnosis_result = None
 
 # Initialize session state for all features
 for key in data.feature_names:
@@ -149,13 +151,18 @@ with right_col:
     st.markdown("</div>", unsafe_allow_html=True)
 
     st.subheader("Diagnosis Estimate")
-    # ✅ FIX: Use all 30 features in original training order
-    ordered_keys = list(data.feature_names)
-    X = np.array([[st.session_state[f"n_{k}"] for k in ordered_keys]])
-    p = pipe.predict_proba(X)[0, 1]
-    if p >= 0.5:
-        st.error(f"🚨 **MALIGNANT**  \nProbability: **{p:.1%}** (≈ {p*100:.0f} out of 100 similar cases)", icon="🚨")
-    else:
-        st.success(f"🫰 **BENIGN**  \nProbability: **{1-p:.1%}** (≈ {(1-p)*100:.0f} out of 100 similar cases)", icon="✅")
+
+    if st.button("Run Diagnosis"):
+        ordered_keys = list(data.feature_names)
+        X = np.array([[st.session_state[f"n_{k}"] for k in ordered_keys]])
+        p = pipe.predict_proba(X)[0, 1]
+        st.session_state.diagnosis_result = p
+
+    if st.session_state.diagnosis_result is not None:
+        p = st.session_state.diagnosis_result
+        if p >= 0.5:
+            st.error(f"🚨 **MALIGNANT**  \nProbability: **{p:.1%}** (≈ {p*100:.0f} out of 100 similar cases)", icon="🚨")
+        else:
+            st.success(f"🫰 **BENIGN**  \nProbability: **{1-p:.1%}** (≈ {(1-p)*100:.0f} out of 100 similar cases)", icon="✅")
 
     st.caption("Model is for educational use only and **does not replace professional medical advice.**")
