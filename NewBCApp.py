@@ -11,17 +11,16 @@ st.set_page_config(layout="wide")
 MODEL_PATH = Path("breast_cancer_pipe_updated.pkl")
 TEST_ACC = 0.965
 
-# Load model
+# Load dataset and model
+data = load_breast_cancer()
+df = pd.DataFrame(data.data, columns=data.feature_names)
+df['target'] = data.target
+
 @st.cache_resource
 def load_model(path: Path):
     return joblib.load(path)
 
 pipe = load_model(MODEL_PATH)
-
-# Load data
-data = load_breast_cancer()
-df = pd.DataFrame(data.data, columns=data.feature_names)
-df['target'] = data.target
 
 # Percentile bounds
 percentile_bounds = {}
@@ -32,6 +31,7 @@ for col in data.feature_names:
     step = 0.001 if high - low < 10 else 0.1 if high - low < 100 else 1
     percentile_bounds[col] = (low, high, step, avg)
 
+# Grouped features
 FEATURE_GROUPS = {
     "Radius (mm)": ["mean radius", "worst radius"],
     "Perimeter (mm)": ["mean perimeter", "worst perimeter"],
@@ -41,21 +41,21 @@ FEATURE_GROUPS = {
     "Texture": ["mean texture"]
 }
 
-# Init session state
+# Session setup
 if "reset_trigger" not in st.session_state:
     st.session_state.reset_trigger = None
-if "diagnosis_clicked" not in st.session_state:
-    st.session_state.diagnosis_clicked = False
-if "diagnosis_result" not in st.session_state:
-    st.session_state.diagnosis_result = None
+if "run_diagnosis" not in st.session_state:
+    st.session_state.run_diagnosis = False
 
+# Initialize inputs
 for key in data.feature_names:
     if f"s_{key}" not in st.session_state or f"n_{key}" not in st.session_state:
         _, _, _, avg = percentile_bounds[key]
         st.session_state[f"s_{key}"] = avg
         st.session_state[f"n_{key}"] = avg
 
-if st.session_state.reset_trigger is not None:
+# Reset
+if st.session_state.reset_trigger:
     reset_key = st.session_state.reset_trigger
     _, _, _, avg = percentile_bounds[reset_key]
     st.session_state[f"s_{reset_key}"] = avg
@@ -76,6 +76,7 @@ st.subheader("Adjust Tumor Characteristics")
 
 left_col, right_col = st.columns([1, 1], gap="large")
 
+# LEFT panel
 with left_col:
     values = {}
     for group_title, keys in FEATURE_GROUPS.items():
@@ -107,6 +108,7 @@ with left_col:
 
                 values[key] = st.session_state[f"n_{key}"]
 
+# RIGHT panel
 with right_col:
     st.markdown("""
     <div style="position:sticky; top:0; background-color:#0e1117; padding:1rem 1rem 0 1rem; z-index:99">
@@ -114,6 +116,7 @@ with right_col:
     <p style="margin-top:0; font-weight:500">Estimated Malignancy Likelihood per Feature</p>
     """, unsafe_allow_html=True)
 
+    # Likelihood Chart
     likelihoods = []
     for feature, user_val in values.items():
         margin = 0.05 * user_val
@@ -150,17 +153,15 @@ with right_col:
 
     st.markdown("</div>", unsafe_allow_html=True)
 
+    # DIAGNOSIS
     st.subheader("Diagnosis Estimate")
-
     if st.button("Run Diagnosis"):
-        st.session_state.diagnosis_clicked = True
-        ordered_keys = list(data.feature_names)
+        st.session_state.run_diagnosis = True
+
+    if st.session_state.run_diagnosis:
+        ordered_keys = [k for k in data.feature_names]
         X = np.array([[st.session_state[f"n_{k}"] for k in ordered_keys]])
         p = pipe.predict_proba(X)[0, 1]
-        st.session_state.diagnosis_result = p
-
-    if st.session_state.diagnosis_clicked and st.session_state.diagnosis_result is not None:
-        p = st.session_state.diagnosis_result
         if p >= 0.5:
             st.error(f"🚨 **MALIGNANT**  \nProbability: **{p:.1%}** (≈ {p*100:.0f} out of 100 similar cases)", icon="🚨")
         else:
