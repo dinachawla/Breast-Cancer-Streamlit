@@ -8,23 +8,22 @@ from sklearn.datasets import load_breast_cancer
 
 st.set_page_config(layout="wide")
 
-# Add sticky CSS for right column
-st.markdown(
-    """
+# Sticky behavior for the right column content
+st.markdown("""
     <style>
-    .sticky-right {
-        position: -webkit-sticky;
+    /* Use nth-of-type(3) to target the third column (right_col) */
+    [data-testid="column"]:nth-of-type(3) > div {
         position: sticky;
-        top: 1rem;
-        align-self: start;
-        z-index: 1;
+        top: 80px;  /* adjust based on top bar height */
+        margin-bottom: auto;
         background-color: white;
-        padding-top: 0.5rem;
+        padding: 1rem 0.5rem;
+        border-radius: 0.5rem;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+        z-index: 2;
     }
     </style>
-    """,
-    unsafe_allow_html=True
-)
+""", unsafe_allow_html=True)
 
 MODEL_PATH = Path("breast_cancer_pipe_11features.pkl")
 TEST_ACC = 0.965
@@ -131,53 +130,49 @@ with left_col:
                 values[key] = st.session_state[f"n_{key}"]
 
 with right_col:
-    with st.container(key="sticky-right-column-container"):
+    st.subheader("Feature-Level Malignancy Likelihood")
+    likelihoods = []
+    for feature, user_val in values.items():
+        margin = 0.05 * user_val
+        min_val = user_val - margin
+        max_val = user_val + margin
+        nearby_cases = df[(df[feature] >= min_val) & (df[feature] <= max_val)]
+        malignant_pct = 100 * nearby_cases['target'].mean() if not nearby_cases.empty else None
+        likelihoods.append((feature, user_val, malignant_pct, len(nearby_cases)))
 
-        st.subheader("Feature-Level Malignancy Likelihood")
-        likelihoods = []
-        for feature, user_val in values.items():
-            margin = 0.05 * user_val
-            min_val = user_val - margin
-            max_val = user_val + margin
-            nearby_cases = df[(df[feature] >= min_val) & (df[feature] <= max_val)]
-            malignant_pct = 100 * nearby_cases['target'].mean() if not nearby_cases.empty else None
-            likelihoods.append((feature, user_val, malignant_pct, len(nearby_cases)))
+    likelihood_df = pd.DataFrame(likelihoods, columns=["Feature", "User Value", "% Malignant", "Cases in Range"])
+    filtered_df = likelihood_df.dropna()
 
-        likelihood_df = pd.DataFrame(likelihoods, columns=["Feature", "User Value", "% Malignant", "Cases in Range"])
-        filtered_df = likelihood_df.dropna()
+    if not filtered_df.empty:
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=filtered_df['Feature'],
+            y=filtered_df['% Malignant'],
+            mode='lines+markers+text',
+            name='% Malignant',
+            line=dict(color='crimson', width=3),
+            text=[f"{p:.1f}%" for p in filtered_df['% Malignant']],
+            textposition="top center"
+        ))
+        fig.update_layout(
+            xaxis_title='Tumor Feature',
+            yaxis_title='% of Similar Cases that were Malignant',
+            yaxis_range=[0, 100],
+            height=500,
+            margin=dict(l=10, r=10, t=10, b=40)
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("Not enough data to show malignancy likelihood chart.")
 
-        if not filtered_df.empty:
-            fig = go.Figure()
-            fig.add_trace(go.Scatter(
-                x=filtered_df['Feature'],
-                y=filtered_df['% Malignant'],
-                mode='lines+markers+text',
-                name='% Malignant',
-                line=dict(color='crimson', width=3),
-                text=[f"{p:.1f}%" for p in filtered_df['% Malignant']],
-                textposition="top center"
-            ))
-            fig.update_layout(
-                xaxis_title='Tumor Feature',
-                yaxis_title='% of Similar Cases that were Malignant',
-                yaxis_range=[0, 100],
-                height=500,
-                margin=dict(l=10, r=10, t=10, b=40)
-            )
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.info("Not enough data to show malignancy likelihood chart.")
+    st.subheader("Diagnosis Estimate")
+    ordered_keys = [k for keys in FEATURE_GROUPS.values() for k in keys]
+    X = np.array([[values[k] for k in ordered_keys]])
+    p = pipe.predict_proba(X)[0, 1]
 
-        st.subheader("Diagnosis Estimate")
-        ordered_keys = [k for keys in FEATURE_GROUPS.values() for k in keys]
-        X = np.array([[values[k] for k in ordered_keys]])
-        p = pipe.predict_proba(X)[0, 1]
+    if p >= 0.5:
+        st.error(f"🚨 **MALIGNANT**  \nProbability: **{p:.1%}** (≈ {p*100:.0f} out of 100 similar cases)", icon="🚨")
+    else:
+        st.success(f"🫰 **BENIGN**  \nProbability: **{1 - p:.1%}** (≈ {(1 - p)*100:.0f} out of 100 similar cases)", icon="✅")
 
-        if p >= 0.5:
-            st.error(f"🚨 **MALIGNANT**  \nProbability: **{p:.1%}** (≈ {p*100:.0f} out of 100 similar cases)", icon="🚨")
-        else:
-            st.success(f"🫰 **BENIGN**  \nProbability: **{1 - p:.1%}** (≈ {(1 - p)*100:.0f} out of 100 similar cases)", icon="✅")
-
-        st.caption("Model is for educational use only and **does not replace professional medical advice.**")
-
-        st.markdown('</div>', unsafe_allow_html=True)
+    st.caption("Model is for educational use only and **does not replace professional medical advice.**")
