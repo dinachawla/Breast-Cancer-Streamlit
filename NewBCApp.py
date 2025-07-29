@@ -8,13 +8,13 @@ from sklearn.datasets import load_breast_cancer
 
 st.set_page_config(layout="wide")
 
-MODEL_PATH = Path("retrained_11_feature_model.pkl")
+MODEL_PATH = Path("breast_cancer_pipe_corrected.pkl")
 TEST_ACC = 0.965
 
 # Load dataset and model
 data = load_breast_cancer()
 df = pd.DataFrame(data.data, columns=data.feature_names)
-df['target'] = data.target
+df['target'] = 1 - data.target  # Flip to match new model (0 = benign, 1 = malignant)
 
 @st.cache_resource
 def load_model(path: Path):
@@ -22,26 +22,16 @@ def load_model(path: Path):
 
 pipe = load_model(MODEL_PATH)
 
-# Use only the selected features
-SELECTED_FEATURES = [
-    "mean radius", "worst radius",
-    "mean perimeter", "worst perimeter",
-    "mean area", "worst area",
-    "mean concavity", "worst concavity",
-    "mean concave points", "worst concave points",
-    "mean texture"
-]
-
 # Compute percentiles
 percentile_bounds = {}
-for col in SELECTED_FEATURES:
+for col in data.feature_names:
     low = np.percentile(df[col], 5)
     high = np.percentile(df[col], 95)
     avg = df[col].mean()
     step = 0.001 if high - low < 10 else 0.1 if high - low < 100 else 1
     percentile_bounds[col] = (low, high, step, avg)
 
-# Group features for layout
+# Define grouped features
 FEATURE_GROUPS = {
     "Radius (mm)": ["mean radius", "worst radius"],
     "Perimeter (mm)": ["mean perimeter", "worst perimeter"],
@@ -51,14 +41,24 @@ FEATURE_GROUPS = {
     "Texture": ["mean texture"]
 }
 
-# Initialize session state
-for key in SELECTED_FEATURES:
+# Init session state
+if "reset_trigger" not in st.session_state:
+    st.session_state.reset_trigger = None
+
+for key in data.feature_names:
     if f"s_{key}" not in st.session_state or f"n_{key}" not in st.session_state:
         _, _, _, avg = percentile_bounds[key]
         st.session_state[f"s_{key}"] = avg
         st.session_state[f"n_{key}"] = avg
 
-# Sync logic
+if st.session_state.reset_trigger is not None:
+    reset_key = st.session_state.reset_trigger
+    if reset_key in percentile_bounds:
+        _, _, _, avg = percentile_bounds[reset_key]
+        st.session_state[f"s_{reset_key}"] = avg
+        st.session_state[f"n_{reset_key}"] = avg
+    st.session_state.reset_trigger = None
+
 def sync_slider(key):
     st.session_state[f"s_{key}"] = st.session_state[f"n_{key}"]
 
@@ -97,6 +97,10 @@ with left_col:
                     on_change=sync_slider, args=(key,)
                 )
 
+                if st.button(f"Reset {key.title()}", key=f"reset_{key}"):
+                    st.session_state.reset_trigger = key
+                    st.experimental_rerun()
+
                 values[key] = st.session_state[f"n_{key}"]
 
 with right_col:
@@ -107,7 +111,7 @@ with right_col:
         min_val = user_val - margin
         max_val = user_val + margin
         nearby_cases = df[(df[feature] >= min_val) & (df[feature] <= max_val)]
-        malignant_pct = 100 * (1 - nearby_cases['target'].mean()) if not nearby_cases.empty else None
+        malignant_pct = 100 * nearby_cases['target'].mean() if not nearby_cases.empty else None
         likelihoods.append((feature, user_val, malignant_pct, len(nearby_cases)))
 
     likelihood_df = pd.DataFrame(likelihoods, columns=["Feature", "User Value", "% Malignant", "Cases in Range"])
@@ -136,11 +140,13 @@ with right_col:
         st.info("Not enough data to show malignancy likelihood chart.")
 
     st.subheader("Diagnosis Estimate")
-    X_input = np.array([[values[k] for k in SELECTED_FEATURES]])
-    p = pipe.predict_proba(X_input)[0, 1]
+    ordered_keys = [k for keys in FEATURE_GROUPS.values() for k in keys]
+    X = np.array([[values[k] for k in ordered_keys]])
+    p = pipe.predict_proba(X)[0, 1]  # p = probability of malignant (class 1)
+
     if p >= 0.5:
         st.error(f"🚨 **MALIGNANT**  \nProbability: **{p:.1%}** (≈ {p*100:.0f} out of 100 similar cases)", icon="🚨")
     else:
-        st.success(f"🩺 **BENIGN**  \nProbability: **{1-p:.1%}** (≈ {(1-p)*100:.0f} out of 100 similar cases)", icon="✅")
+        st.success(f"🫰 **BENIGN**  \nProbability: **{1 - p:.1%}** (≈ {(1 - p)*100:.0f} out of 100 similar cases)", icon="✅")
 
     st.caption("Model is for educational use only and **does not replace professional medical advice.**")
