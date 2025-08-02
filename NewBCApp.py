@@ -113,7 +113,7 @@ def sync_slider(key):
 def sync_number_input(key):
     st.session_state[f"n_{key}"] = st.session_state[f"s_{key}"]
 
-st.title("CURA: Breast Cancer ML Classifier 🩺")
+st.title("CURA - Breast Cancer ML Classifier 🩺")
 st.caption(f"Model hold-out accuracy: {TEST_ACC:.1%}")
 st.subheader("Adjust Tumor Characteristics")
 
@@ -123,40 +123,99 @@ with left_col:
     values = {}
     for group_title, keys in FEATURE_GROUPS.items():
         st.markdown(f"### {group_title}")
-        cols = st.columns(len(keys))
-        for col, key in zip(cols, keys):
-            with col:
-                low, high, step, avg = percentile_bounds[key]
-                st.markdown(
-                    f"""
-                    <div class='custom-box'>
-                    <h4 class='custom-title'>{key.title()}</h4>
-                    <p class='custom-caption'>{TOOLTIPS.get(key, '')} (Avg: {avg:.3f})</p>
-                    """,
-                    unsafe_allow_html=True
-                )
 
-                slider_val = st.slider(
-                    label="", key=f"s_{key}",
-                    min_value=float(low), max_value=float(high),
-                    step=float(step), label_visibility="collapsed",
-                    on_change=sync_number_input, args=(key,)
-                )
+        # Special layout for Core Predictive Features
+        if group_title == "Core Predictive Features":
+            first_row = st.columns(2)
+            for col, key in zip(first_row, keys[:2]):
+                with col:
+                    low, high, step, avg = percentile_bounds[key]
+                    st.markdown(
+                        f"""
+                        <div class='custom-box'>
+                        <h4 class='custom-title'>{key.title()}</h4>
+                        <p class='custom-caption'>{TOOLTIPS.get(key, '')} (Avg: {avg:.3f})</p>
+                        """,
+                        unsafe_allow_html=True
+                    )
+                    slider_val = st.slider(
+                        label="", key=f"s_{key}",
+                        min_value=float(low), max_value=float(high),
+                        step=float(step), label_visibility="collapsed",
+                        on_change=sync_number_input, args=(key,)
+                    )
+                    number_val = st.number_input(
+                        label="Exact", key=f"n_{key}",
+                        min_value=float(low), max_value=float(high),
+                        step=float(step), format="%.4f" if step < 1 else "%.0f",
+                        on_change=sync_slider, args=(key,)
+                    )
+                    values[key] = number_val
+                    if st.button(f"Reset {key.title()}", key=f"reset_{key}"):
+                        st.session_state.reset_trigger = key
+                        st.experimental_rerun()
+                    st.markdown("</div>", unsafe_allow_html=True)
 
-                number_val = st.number_input(
-                    label="Exact", key=f"n_{key}",
-                    min_value=float(low), max_value=float(high),
-                    step=float(step), format="%.4f" if step < 1 else "%.0f",
-                    on_change=sync_slider, args=(key,)
-                )
+            # Third core feature in its own row
+            st.markdown("\n")
+            low, high, step, avg = percentile_bounds[keys[2]]
+            key = keys[2]
+            st.markdown(
+                f"""
+                <div class='custom-box'>
+                <h4 class='custom-title'>{key.title()}</h4>
+                <p class='custom-caption'>{TOOLTIPS.get(key, '')} (Avg: {avg:.3f})</p>
+                """,
+                unsafe_allow_html=True
+            )
+            slider_val = st.slider(
+                label="", key=f"s_{key}",
+                min_value=float(low), max_value=float(high),
+                step=float(step), label_visibility="collapsed",
+                on_change=sync_number_input, args=(key,)
+            )
+            number_val = st.number_input(
+                label="Exact", key=f"n_{key}",
+                min_value=float(low), max_value=float(high),
+                step=float(step), format="%.4f" if step < 1 else "%.0f",
+                on_change=sync_slider, args=(key,)
+            )
+            values[key] = number_val
+            if st.button(f"Reset {key.title()}", key=f"reset_{key}"):
+                st.session_state.reset_trigger = key
+                st.experimental_rerun()
+            st.markdown("</div>", unsafe_allow_html=True)
 
-                values[key] = number_val
-
-                if st.button(f"Reset {key.title()}", key=f"reset_{key}"):
-                    st.session_state.reset_trigger = key
-                    st.experimental_rerun()
-
-                st.markdown("</div>", unsafe_allow_html=True)
+        else:
+            cols = st.columns(len(keys))
+            for col, key in zip(cols, keys):
+                with col:
+                    low, high, step, avg = percentile_bounds[key]
+                    st.markdown(
+                        f"""
+                        <div class='custom-box'>
+                        <h4 class='custom-title'>{key.title()}</h4>
+                        <p class='custom-caption'>{TOOLTIPS.get(key, '')} (Avg: {avg:.3f})</p>
+                        """,
+                        unsafe_allow_html=True
+                    )
+                    slider_val = st.slider(
+                        label="", key=f"s_{key}",
+                        min_value=float(low), max_value=float(high),
+                        step=float(step), label_visibility="collapsed",
+                        on_change=sync_number_input, args=(key,)
+                    )
+                    number_val = st.number_input(
+                        label="Exact", key=f"n_{key}",
+                        min_value=float(low), max_value=float(high),
+                        step=float(step), format="%.4f" if step < 1 else "%.0f",
+                        on_change=sync_slider, args=(key,)
+                    )
+                    values[key] = number_val
+                    if st.button(f"Reset {key.title()}", key=f"reset_{key}"):
+                        st.session_state.reset_trigger = key
+                        st.experimental_rerun()
+                    st.markdown("</div>", unsafe_allow_html=True)
 
 with right_col:
     st.subheader("Feature-Level Malignancy Likelihood")
@@ -209,7 +268,7 @@ with right_col:
     if p >= 0.5:
         st.error(f"🚨 **MALIGNANT**  \nProbability: **{p:.1%}** ({confidence})", icon="🚨")
     else:
-        st.success(f"✅ **BENIGN**  \nProbability: **{1 - p:.1%}** ({confidence})", icon="✅")
+        st.success(f"�� **BENIGN**  \nProbability: **{1 - p:.1%}** ({confidence})", icon="✅")
 
     diffs = {k: abs(values[k] - df[k].mean()) for k in values}
     top_feature = max(diffs, key=diffs.get)
