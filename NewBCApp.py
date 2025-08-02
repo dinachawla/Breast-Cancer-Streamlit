@@ -119,10 +119,11 @@ st.subheader("Adjust Tumor Characteristics")
 
 left_col, right_col = st.columns([1, 1], gap="large")
 
-values = {}
 with left_col:
+    values = {}
     for group_title, keys in FEATURE_GROUPS.items():
         st.markdown(f"### {group_title}")
+
         if group_title == "Core Predictive Features":
             first_row = st.columns(2)
             for col, key in zip(first_row, keys[:2]):
@@ -140,6 +141,7 @@ with left_col:
                         st.session_state.reset_trigger = key
                         st.experimental_rerun()
                     st.markdown("</div>", unsafe_allow_html=True)
+
             st.markdown("\n")
             key = keys[2]
             low, high, step, avg = percentile_bounds[key]
@@ -155,6 +157,7 @@ with left_col:
                 st.session_state.reset_trigger = key
                 st.experimental_rerun()
             st.markdown("</div>", unsafe_allow_html=True)
+
         else:
             cols = st.columns(len(keys))
             for col, key in zip(cols, keys):
@@ -213,9 +216,14 @@ with right_col:
     input_df = pd.DataFrame([values])
     X = input_df[pipe.feature_names_in_]
     p = pipe.predict_proba(X)[0, 1]
-    benign_p = 1 - p
-    benign_cases = int(round(benign_p * 100))
-    malignant_cases = 100 - benign_cases
+
+    malignant_cases = round(p * 100)
+    benign_cases = 100 - malignant_cases
+
+    if benign_cases < 60:
+        st.error(f"**MALIGNANT**  \nProbability: **{p:.1%}** ({malignant_cases} out of 100 cases likely malignant)", icon="🚨")
+    else:
+        st.success(f"**BENIGN**  \nProbability: **{1 - p:.1%}** ({benign_cases} out of 100 cases likely benign)", icon="✅")
 
     if p >= 0.85:
         confidence = "High Confidence"
@@ -224,10 +232,7 @@ with right_col:
     else:
         confidence = "Low Confidence"
 
-    if benign_cases < 60:
-        st.error(f"**MALIGNANT**  \nProbability: **{p:.1%}** ({confidence})  \n**{malignant_cases} out of 100 similar cases were malignant.**", icon="🚨")
-    else:
-        st.success(f"**BENIGN**  \nProbability: **{benign_p:.1%}** ({confidence})  \n**{benign_cases} out of 100 similar cases were benign.**", icon="✅")
+    st.caption(f"Confidence Level: {confidence}")
 
     diffs = {k: abs(values[k] - df[k].mean()) for k in values}
     top_feature = max(diffs, key=diffs.get)
