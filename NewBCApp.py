@@ -266,9 +266,9 @@ with right_col:
         confidence = "Low Confidence"
 
     if p >= 0.5:
-        st.error(f"🚨 **MALIGNANT**  \nProbability: **{p:.1%}** ({confidence})", icon="🚨")
+        st.error(f"**MALIGNANT**  \nProbability: **{p:.1%}** ({confidence})", icon="🚨")
     else:
-        st.success(f"�� **BENIGN**  \nProbability: **{1 - p:.1%}** ({confidence})", icon="✅")
+        st.success(f"**BENIGN**  \nProbability: **{1 - p:.1%}** ({confidence})", icon="✅")
 
     diffs = {k: abs(values[k] - df[k].mean()) for k in values}
     top_feature = max(diffs, key=diffs.get)
