@@ -8,13 +8,11 @@ from sklearn.datasets import load_breast_cancer
 
 st.set_page_config(layout="wide")
 
-# Sticky behavior for the right column content
 st.markdown("""
     <style>
-    /* Use nth-of-type(3) to target the third column (right_col) */
     [data-testid="column"]:nth-of-type(3) > div {
         position: sticky;
-        top: 80px;  /* adjust based on top bar height */
+        top: 80px;
         margin-bottom: auto;
         background-color: white;
         padding: 1rem 0.5rem;
@@ -28,10 +26,9 @@ st.markdown("""
 MODEL_PATH = Path("breast_cancer_pipe_11features.pkl")
 TEST_ACC = 0.965
 
-# Load dataset and model
 data = load_breast_cancer()
 df = pd.DataFrame(data.data, columns=data.feature_names)
-df['target'] = 1 - data.target  # Flip to match model
+df['target'] = 1 - data.target
 
 SELECTED_FEATURES = [
     "mean radius", "worst radius",
@@ -48,7 +45,6 @@ def load_model(path: Path):
 
 pipe = load_model(MODEL_PATH)
 
-# Compute percentiles
 percentile_bounds = {}
 for col in SELECTED_FEATURES:
     low = np.percentile(df[col], 5)
@@ -57,17 +53,30 @@ for col in SELECTED_FEATURES:
     step = 0.001 if high - low < 10 else 0.1 if high - low < 100 else 1
     percentile_bounds[col] = (low, high, step, avg)
 
-# Define grouped features
 FEATURE_GROUPS = {
-    "Radius (mm)": ["mean radius", "worst radius"],
-    "Perimeter (mm)": ["mean perimeter", "worst perimeter"],
-    "Area (mm²)": ["mean area", "worst area"],
+    "Core Predictive Features": ["mean radius", "mean perimeter", "mean area"],
+    "Radius (mm)": ["worst radius"],
+    "Perimeter (mm)": ["worst perimeter"],
+    "Area (mm²)": ["worst area"],
     "Concavity": ["mean concavity", "worst concavity"],
     "Concave Points": ["mean concave points", "worst concave points"],
     "Texture": ["mean texture"]
 }
 
-# Init session state
+TOOLTIPS = {
+    "mean radius": "Average distance from center to tumor edge",
+    "mean perimeter": "Average boundary length of the tumor",
+    "mean area": "Average surface area of the tumor",
+    "worst radius": "Largest observed distance from center to edge",
+    "worst perimeter": "Longest boundary length observed",
+    "worst area": "Largest surface area measured",
+    "mean concavity": "Average severity of concave portions",
+    "worst concavity": "Maximum concavity observed",
+    "mean concave points": "Average number of concave points on contour",
+    "worst concave points": "Max number of concave points",
+    "mean texture": "Standard deviation of gray-scale values"
+}
+
 if "reset_trigger" not in st.session_state:
     st.session_state.reset_trigger = None
 
@@ -91,7 +100,6 @@ def sync_slider(key):
 def sync_number_input(key):
     st.session_state[f"n_{key}"] = st.session_state[f"s_{key}"]
 
-# UI
 st.title("Breast Cancer ML Classifier 🩺")
 st.caption(f"Model hold-out accuracy: {TEST_ACC:.1%}")
 st.subheader("Adjust Tumor Characteristics")
@@ -107,7 +115,7 @@ with left_col:
             with col:
                 low, high, step, avg = percentile_bounds[key]
                 st.markdown(f"<h4 style='margin-bottom:0.2rem'>{key.title()}</h4>", unsafe_allow_html=True)
-                st.caption(f"*Population average: {avg:.3f}*")
+                st.caption(f"{TOOLTIPS.get(key, '')} (Avg: {avg:.3f})")
 
                 st.slider(
                     label="", key=f"s_{key}",
@@ -170,9 +178,19 @@ with right_col:
     X = np.array([[values[k] for k in ordered_keys]])
     p = pipe.predict_proba(X)[0, 1]
 
-    if p >= 0.5:
-        st.error(f"🚨 **MALIGNANT**  \nProbability: **{p:.1%}** (≈ {p*100:.0f} out of 100 similar cases)", icon="🚨")
+    if p >= 0.85:
+        confidence = "High Confidence"
+    elif p >= 0.6:
+        confidence = "Moderate Confidence"
     else:
-        st.success(f"🫰 **BENIGN**  \nProbability: **{1 - p:.1%}** (≈ {(1 - p)*100:.0f} out of 100 similar cases)", icon="✅")
+        confidence = "Low Confidence"
 
+    if p >= 0.5:
+        st.error(f"🚨 **MALIGNANT**  \nProbability: **{p:.1%}** ({confidence})", icon="🚨")
+    else:
+        st.success(f"�� **BENIGN**  \nProbability: **{1 - p:.1%}** ({confidence})", icon="✅")
+
+    diffs = {k: abs(values[k] - df[k].mean()) for k in values}
+    top_feature = max(diffs, key=diffs.get)
+    st.markdown(f"**Most Influential Feature:** {top_feature.title()} — largest deviation from average")
     st.caption("Model is for educational use only and **does not replace professional medical advice.**")
