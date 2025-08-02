@@ -8,19 +8,40 @@ from sklearn.datasets import load_breast_cancer
 
 st.set_page_config(layout="wide")
 
-MODEL_PATH = Path("breast_cancer_pipe_11features_raw.pkl")
+st.markdown("""
+    <style>
+    [data-testid="column"]:nth-of-type(3) > div {
+        position: sticky;
+        top: 80px;
+        margin-bottom: auto;
+        background-color: white;
+        padding: 1rem 0.5rem;
+        border-radius: 0.5rem;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+        z-index: 2;
+    }
+    .custom-box {
+        background-color: #1e1e1e;
+        padding: 1rem;
+        border-radius: 0.5rem;
+    }
+    .custom-title {
+        color: white;
+        margin-bottom: 0.2rem;
+    }
+    .custom-caption {
+        color: lightgray;
+        font-size: 0.85rem;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+MODEL_PATH = Path("breast_cancer_pipe_11features.pkl")
 TEST_ACC = 0.965
 
-@st.cache_resource
-def load_model(path: Path):
-    return joblib.load(path)
-
-pipe = load_model(MODEL_PATH)
-
-# Load raw data
-raw_data = load_breast_cancer()
-df = pd.DataFrame(raw_data.data, columns=raw_data.feature_names)
-df['target'] = 1 - raw_data.target
+data = load_breast_cancer()
+df = pd.DataFrame(data.data, columns=data.feature_names)
+df['target'] = data.target  # ✅ Corrected: No longer flipping labels
 
 SELECTED_FEATURES = [
     "mean radius", "worst radius",
@@ -30,6 +51,12 @@ SELECTED_FEATURES = [
     "mean concave points", "worst concave points",
     "mean texture"
 ]
+
+@st.cache_resource
+def load_model(path: Path):
+    return joblib.load(path)
+
+pipe = load_model(MODEL_PATH)
 
 percentile_bounds = {}
 for col in SELECTED_FEATURES:
@@ -96,23 +123,95 @@ with left_col:
     values = {}
     for group_title, keys in FEATURE_GROUPS.items():
         st.markdown(f"### {group_title}")
-        cols = st.columns(len(keys))
-        for col, key in zip(cols, keys):
-            with col:
-                low, high, step, avg = percentile_bounds[key]
-                st.markdown(f"**{key.title()}**\n\n{TOOLTIPS.get(key, '')} (Avg: {avg:.3f})")
-                slider_val = st.slider("", min_value=float(low), max_value=float(high),
-                                       value=st.session_state[f"s_{key}"],
-                                       step=float(step), label_visibility="collapsed",
-                                       key=f"s_{key}", on_change=sync_number_input, args=(key,))
-                number_val = st.number_input("Exact", min_value=float(low), max_value=float(high),
-                                             value=st.session_state[f"n_{key}"],
-                                             step=float(step), format="%.4f" if step < 1 else "%.0f",
-                                             key=f"n_{key}", on_change=sync_slider, args=(key,))
-                values[key] = number_val
-                if st.button(f"Reset {key.title()}", key=f"reset_{key}"):
-                    st.session_state.reset_trigger = key
-                    st.experimental_rerun()
+        if group_title == "Core Predictive Features":
+            first_row = st.columns(2)
+            for col, key in zip(first_row, keys[:2]):
+                with col:
+                    low, high, step, avg = percentile_bounds[key]
+                    st.markdown(
+                        f"""
+                        <div class='custom-box'>
+                        <h4 class='custom-title'>{key.title()}</h4>
+                        <p class='custom-caption'>{TOOLTIPS.get(key, '')} (Avg: {avg:.3f})</p>
+                        """,
+                        unsafe_allow_html=True
+                    )
+                    slider_val = st.slider(
+                        label="", key=f"s_{key}",
+                        min_value=float(low), max_value=float(high),
+                        step=float(step), label_visibility="collapsed",
+                        on_change=sync_number_input, args=(key,)
+                    )
+                    number_val = st.number_input(
+                        label="Exact", key=f"n_{key}",
+                        min_value=float(low), max_value=float(high),
+                        step=float(step), format="%.4f" if step < 1 else "%.0f",
+                        on_change=sync_slider, args=(key,)
+                    )
+                    values[key] = number_val
+                    if st.button(f"Reset {key.title()}", key=f"reset_{key}"):
+                        st.session_state.reset_trigger = key
+                        st.experimental_rerun()
+                    st.markdown("</div>", unsafe_allow_html=True)
+
+            st.markdown("\n")
+            low, high, step, avg = percentile_bounds[keys[2]]
+            key = keys[2]
+            st.markdown(
+                f"""
+                <div class='custom-box'>
+                <h4 class='custom-title'>{key.title()}</h4>
+                <p class='custom-caption'>{TOOLTIPS.get(key, '')} (Avg: {avg:.3f})</p>
+                """,
+                unsafe_allow_html=True
+            )
+            slider_val = st.slider(
+                label="", key=f"s_{key}",
+                min_value=float(low), max_value=float(high),
+                step=float(step), label_visibility="collapsed",
+                on_change=sync_number_input, args=(key,)
+            )
+            number_val = st.number_input(
+                label="Exact", key=f"n_{key}",
+                min_value=float(low), max_value=float(high),
+                step=float(step), format="%.4f" if step < 1 else "%.0f",
+                on_change=sync_slider, args=(key,)
+            )
+            values[key] = number_val
+            if st.button(f"Reset {key.title()}", key=f"reset_{key}"):
+                st.session_state.reset_trigger = key
+                st.experimental_rerun()
+            st.markdown("</div>", unsafe_allow_html=True)
+        else:
+            cols = st.columns(len(keys))
+            for col, key in zip(cols, keys):
+                with col:
+                    low, high, step, avg = percentile_bounds[key]
+                    st.markdown(
+                        f"""
+                        <div class='custom-box'>
+                        <h4 class='custom-title'>{key.title()}</h4>
+                        <p class='custom-caption'>{TOOLTIPS.get(key, '')} (Avg: {avg:.3f})</p>
+                        """,
+                        unsafe_allow_html=True
+                    )
+                    slider_val = st.slider(
+                        label="", key=f"s_{key}",
+                        min_value=float(low), max_value=float(high),
+                        step=float(step), label_visibility="collapsed",
+                        on_change=sync_number_input, args=(key,)
+                    )
+                    number_val = st.number_input(
+                        label="Exact", key=f"n_{key}",
+                        min_value=float(low), max_value=float(high),
+                        step=float(step), format="%.4f" if step < 1 else "%.0f",
+                        on_change=sync_slider, args=(key,)
+                    )
+                    values[key] = number_val
+                    if st.button(f"Reset {key.title()}", key=f"reset_{key}"):
+                        st.session_state.reset_trigger = key
+                        st.experimental_rerun()
+                    st.markdown("</div>", unsafe_allow_html=True)
 
 with right_col:
     st.subheader("Feature-Level Malignancy Likelihood")
@@ -152,17 +251,20 @@ with right_col:
 
     st.subheader("Diagnosis Estimate")
     input_df = pd.DataFrame([values])
-    X = input_df[pipe.named_steps['model'].feature_names_in_]
+    X = input_df[pipe.feature_names_in_]
     p = pipe.predict_proba(X)[0, 1]
-    malignant_cases = int(round(p * 100))
-    benign_cases = 100 - malignant_cases
 
-    if benign_cases < 60:
-        st.error(f"**MALIGNANT**  \nProbability: **{p:.1%}**  \
-{malignant_cases} out of 100 similar cases were malignant.", icon="🚨")
+    if p >= 0.85:
+        confidence = "High Confidence"
+    elif p >= 0.6:
+        confidence = "Moderate Confidence"
     else:
-        st.success(f"**BENIGN**  \nProbability: **{1 - p:.1%}**  \
-{benign_cases} out of 100 similar cases were benign.", icon="✅")
+        confidence = "Low Confidence"
+
+    if p >= 0.5:
+        st.error(f"**MALIGNANT**  \nProbability: **{p:.1%}** ({confidence})", icon="🚨")
+    else:
+        st.success(f"**BENIGN**  \nProbability: **{1 - p:.1%}** ({confidence})", icon="✅")
 
     diffs = {k: abs(values[k] - df[k].mean()) for k in values}
     top_feature = max(diffs, key=diffs.get)
