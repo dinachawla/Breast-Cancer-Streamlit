@@ -183,7 +183,7 @@ with right_col:
 
     st.subheader("Diagnosis Estimate")
     ordered_keys = [k for keys in FEATURE_GROUPS.values() for k in keys]
-    X = pd.DataFrame([values])[ordered_keys]
+    X = pd.DataFrame([[values[k] for k in ordered_keys]], columns=ordered_keys)
     p = pipe.predict_proba(X)[0, 1]
 
     if p >= 0.85:
@@ -196,7 +196,7 @@ with right_col:
     if p >= 0.5:
         st.error(f"🚨 **MALIGNANT**  \nProbability: **{p:.1%}** ({confidence})", icon="🚨")
     else:
-        st.success(f"�� **BENIGN**  \nProbability: **{1 - p:.1%}** ({confidence})", icon="✅")
+        st.success(f"✅ **BENIGN**  \nProbability: **{1 - p:.1%}** ({confidence})", icon="✅")
 
     diffs = {k: abs(values[k] - df[k].mean()) for k in values}
     top_feature = max(diffs, key=diffs.get)
