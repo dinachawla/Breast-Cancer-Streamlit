@@ -114,8 +114,14 @@ with left_col:
         for col, key in zip(cols, keys):
             with col:
                 low, high, step, avg = percentile_bounds[key]
-                st.markdown(f"<h4 style='margin-bottom:0.2rem'>{key.title()}</h4>", unsafe_allow_html=True)
-                st.caption(f"{TOOLTIPS.get(key, '')} (Avg: {avg:.3f})")
+                st.markdown(
+                    f"""
+                    <div style='background-color:#1e1e1e; padding:1rem; border-radius:0.5rem;'>
+                    <h4 style='color:white; margin-bottom:0.2rem'>{key.title()}</h4>
+                    <p style='color:lightgray; font-size:0.85rem;'>{TOOLTIPS.get(key, '')} (Avg: {avg:.3f})</p>
+                    """,
+                    unsafe_allow_html=True
+                )
 
                 st.slider(
                     label="", key=f"s_{key}",
@@ -136,6 +142,8 @@ with left_col:
                     st.experimental_rerun()
 
                 values[key] = st.session_state[f"n_{key}"]
+
+                st.markdown("</div>", unsafe_allow_html=True)
 
 with right_col:
     st.subheader("Feature-Level Malignancy Likelihood")
