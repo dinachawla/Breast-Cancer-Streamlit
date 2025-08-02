@@ -131,6 +131,7 @@ with left_col:
 
 with right_col:
     with st.container(key="sticky-right-column"):
+        st.write("hellooooo")
         st.subheader("Feature-Level Malignancy Likelihood")
         likelihoods = []
         for feature, user_val in values.items():
