@@ -182,8 +182,8 @@ with right_col:
         st.info("Not enough data to show malignancy likelihood chart.")
 
     st.subheader("Diagnosis Estimate")
-    ordered_keys = [k for keys in FEATURE_GROUPS.values() for k in keys]
-    X = pd.DataFrame([[values[k] for k in ordered_keys]], columns=ordered_keys)
+    input_df = pd.DataFrame([values])
+    X = input_df[pipe.feature_names_in_]
     p = pipe.predict_proba(X)[0, 1]
 
     if p >= 0.85:
