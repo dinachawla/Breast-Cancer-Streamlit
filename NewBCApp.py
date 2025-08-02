@@ -123,25 +123,25 @@ with left_col:
                     unsafe_allow_html=True
                 )
 
-                st.slider(
+                slider_val = st.slider(
                     label="", key=f"s_{key}",
                     min_value=float(low), max_value=float(high),
                     step=float(step), label_visibility="collapsed",
                     on_change=sync_number_input, args=(key,)
                 )
 
-                st.number_input(
+                number_val = st.number_input(
                     label="Exact", key=f"n_{key}",
                     min_value=float(low), max_value=float(high),
                     step=float(step), format="%.4f" if step < 1 else "%.0f",
                     on_change=sync_slider, args=(key,)
                 )
 
+                values[key] = number_val
+
                 if st.button(f"Reset {key.title()}", key=f"reset_{key}"):
                     st.session_state.reset_trigger = key
                     st.experimental_rerun()
-
-                values[key] = st.session_state[f"n_{key}"]
 
                 st.markdown("</div>", unsafe_allow_html=True)
 
@@ -183,7 +183,7 @@ with right_col:
 
     st.subheader("Diagnosis Estimate")
     ordered_keys = [k for keys in FEATURE_GROUPS.values() for k in keys]
-    X = np.array([[values[k] for k in ordered_keys]])
+    X = pd.DataFrame([values])[ordered_keys]
     p = pipe.predict_proba(X)[0, 1]
 
     if p >= 0.85:
