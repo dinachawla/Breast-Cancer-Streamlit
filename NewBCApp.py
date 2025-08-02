@@ -20,6 +20,19 @@ st.markdown("""
         box-shadow: 0 2px 6px rgba(0,0,0,0.04);
         z-index: 2;
     }
+    .custom-box {
+        background-color: #1e1e1e;
+        padding: 1rem;
+        border-radius: 0.5rem;
+    }
+    .custom-title {
+        color: white;
+        margin-bottom: 0.2rem;
+    }
+    .custom-caption {
+        color: lightgray;
+        font-size: 0.85rem;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -100,7 +113,7 @@ def sync_slider(key):
 def sync_number_input(key):
     st.session_state[f"n_{key}"] = st.session_state[f"s_{key}"]
 
-st.title("Breast Cancer ML Classifier 🩺")
+st.title("CURA: Breast Cancer ML Classifier 🩺")
 st.caption(f"Model hold-out accuracy: {TEST_ACC:.1%}")
 st.subheader("Adjust Tumor Characteristics")
 
@@ -116,9 +129,9 @@ with left_col:
                 low, high, step, avg = percentile_bounds[key]
                 st.markdown(
                     f"""
-                    <div style='background-color:#1e1e1e; padding:1rem; border-radius:0.5rem;'>
-                    <h4 style='color:white; margin-bottom:0.2rem'>{key.title()}</h4>
-                    <p style='color:lightgray; font-size:0.85rem;'>{TOOLTIPS.get(key, '')} (Avg: {avg:.3f})</p>
+                    <div class='custom-box'>
+                    <h4 class='custom-title'>{key.title()}</h4>
+                    <p class='custom-caption'>{TOOLTIPS.get(key, '')} (Avg: {avg:.3f})</p>
                     """,
                     unsafe_allow_html=True
                 )
