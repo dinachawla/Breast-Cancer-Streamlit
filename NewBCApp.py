@@ -41,7 +41,7 @@ TEST_ACC = 0.965
 
 data = load_breast_cancer()
 df = pd.DataFrame(data.data, columns=data.feature_names)
-df['target'] = data.target  # ✅ Corrected: No longer flipping labels
+df['target'] = data.target  # 0 = malignant, 1 = benign
 
 SELECTED_FEATURES = [
     "mean radius", "worst radius",
@@ -136,7 +136,7 @@ with left_col:
                         """,
                         unsafe_allow_html=True
                     )
-                    slider_val = st.slider(
+                    st.slider(
                         label="", key=f"s_{key}",
                         min_value=float(low), max_value=float(high),
                         step=float(step), label_visibility="collapsed",
@@ -165,7 +165,7 @@ with left_col:
                 """,
                 unsafe_allow_html=True
             )
-            slider_val = st.slider(
+            st.slider(
                 label="", key=f"s_{key}",
                 min_value=float(low), max_value=float(high),
                 step=float(step), label_visibility="collapsed",
@@ -195,7 +195,7 @@ with left_col:
                         """,
                         unsafe_allow_html=True
                     )
-                    slider_val = st.slider(
+                    st.slider(
                         label="", key=f"s_{key}",
                         min_value=float(low), max_value=float(high),
                         step=float(step), label_visibility="collapsed",
@@ -221,22 +221,23 @@ with right_col:
         min_val = user_val - margin
         max_val = user_val + margin
         nearby_cases = df[(df[feature] >= min_val) & (df[feature] <= max_val)]
-        malignant_pct = 100 * nearby_cases['target'].mean() if not nearby_cases.empty else None
+        malignant_pct = 100 * (1 - nearby_cases['target'].mean()) if not nearby_cases.empty else None
         likelihoods.append((feature, user_val, malignant_pct, len(nearby_cases)))
 
-    likelihood_df = pd.DataFrame(likelihoods, columns=["Feature", "User Value", "% Malignant", "Cases in Range"])
-    filtered_df = likelihood_df.dropna()
+    likelihood_df = pd.DataFrame(
+        likelihoods,
+        columns=["Feature", "User Value", "% Malignant", "Cases in Range"]
+    ).dropna()
 
-    if not filtered_df.empty:
+    if not likelihood_df.empty:
         fig = go.Figure()
         fig.add_trace(go.Scatter(
-            x=filtered_df['Feature'],
-            y=filtered_df['% Malignant'],
+            x=likelihood_df['Feature'],
+            y=likelihood_df['% Malignant'],
             mode='lines+markers+text',
-            name='% Malignant',
-            line=dict(color='crimson', width=3),
-            text=[f"{p:.1f}%" for p in filtered_df['% Malignant']],
-            textposition="top center"
+            text=[f"{p:.1f}%" for p in likelihood_df['% Malignant']],
+            textposition="top center",
+            line=dict(width=3)
         ))
         fig.update_layout(
             xaxis_title='Tumor Feature',
@@ -252,19 +253,27 @@ with right_col:
     st.subheader("Diagnosis Estimate")
     input_df = pd.DataFrame([values])
     X = input_df[pipe.feature_names_in_]
-    p = pipe.predict_proba(X)[0, 1]
+    probs          = pipe.predict_proba(X)[0]
+    malignant_prob = probs[1]  # class 1 → malignant in your pipeline
+    benign_prob    = probs[0]  # class 0 → benign
 
-    if p >= 0.85:
+    if malignant_prob >= 0.85:
         confidence = "High Confidence"
-    elif p >= 0.6:
+    elif malignant_prob >= 0.6:
         confidence = "Moderate Confidence"
     else:
         confidence = "Low Confidence"
 
-    if p >= 0.5:
-        st.error(f"**MALIGNANT**  \nProbability: **{p:.1%}** ({confidence})", icon="🚨")
+    if malignant_prob >= 0.5:
+        st.error(
+            f"**MALIGNANT**  \nProbability: **{malignant_prob:.1%}** ({confidence})",
+            icon="🚨"
+        )
     else:
-        st.success(f"**BENIGN**  \nProbability: **{1 - p:.1%}** ({confidence})", icon="✅")
+        st.success(
+            f"**BENIGN**  \nProbability: **{benign_prob:.1%}** ({confidence})",
+            icon="✅"
+        )
 
     diffs = {k: abs(values[k] - df[k].mean()) for k in values}
     top_feature = max(diffs, key=diffs.get)
