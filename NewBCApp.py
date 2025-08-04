@@ -8,7 +8,7 @@ from sklearn.datasets import load_breast_cancer
 
 st.set_page_config(layout="wide")
 
-# Sticky styling + dark-mode metric boxes
+# Sticky styling + dark‐mode metric boxes
 st.markdown("""
     <style>
     [data-testid="column"]:nth-of-type(3) > div {
@@ -67,7 +67,7 @@ SELECTED_FEATURES = [
 ]
 feature_coefs = {feat: float(raw_coefs[i]) for i, feat in enumerate(SELECTED_FEATURES)}
 
-# Precompute percentiles
+# Precompute percentile bounds
 percentile_bounds = {}
 for feat in SELECTED_FEATURES:
     low, high = np.percentile(df[feat], [5, 95])
@@ -85,7 +85,7 @@ FEATURE_GROUPS = {
     "Texture": ["mean texture"]
 }
 
-# Session-state init
+# Session state init
 if "reset_trigger" not in st.session_state:
     st.session_state.reset_trigger = None
 
@@ -164,7 +164,8 @@ with col_right:
     if not lik_df.empty:
         fig = go.Figure()
         fig.add_trace(go.Scatter(
-            x=lik_df["Feature"], y=lik_df["% Malignant"],
+            x=lik_df["Feature"],
+            y=lik_df["% Malignant"],
             mode="lines+markers+text",
             text=[f"{p:.1f}%" for p in lik_df["% Malignant"]],
             textposition="top center",
@@ -175,7 +176,7 @@ with col_right:
             yaxis_title="% of Similar Cases that were Malignant",
             yaxis_range=[0,100],
             height=500,
-            margin=dict(l=20, r=20, t=40, b=80, pad=10)  # increased padding
+            margin=dict(l=20, r=20, t=100, b=80)  # increased top margin
         )
         st.plotly_chart(fig, use_container_width=True)
     else:
