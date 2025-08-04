@@ -120,16 +120,16 @@ with col_left:
             with container:
                 coef = feature_coefs.get(feat, 0.0)
                 direction_word = "Increasing" if coef > 0 else "Decreasing"
-                direction_desc = f"{direction_word} **{feat}** indicates malignancy."
+                # only bold the direction_word now
+                direction_desc_html = f"<strong>{direction_word}</strong> {feat} indicates malignancy."
 
                 low, high, step, avg = percentile_bounds[feat]
-                # Combined info box: subheading, metric context, directionality
                 st.markdown(
                     f"""
 <div class='metric-box'>
   <strong>{feat.title()}</strong>
   <p><em>Population average: {avg:.3f}</em></p>
-  <p>{direction_desc}</p>
+  <p>{direction_desc_html}</p>
 </div>
 """,
                     unsafe_allow_html=True
