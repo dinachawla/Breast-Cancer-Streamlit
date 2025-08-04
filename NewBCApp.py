@@ -166,10 +166,12 @@ with col_right:
     if not lik_df.empty:
         fig = go.Figure()
         fig.add_trace(go.Scatter(
-            x=lik_df["Feature"], y=lik_df["% Malignant"],
+            x=lik_df["Feature"],
+            y=lik_df["% Malignant"],
             mode="lines+markers+text",
             text=[f"{p:.1f}%" for p in lik_df["% Malignant"]],
             textposition="top center",
+            cliponaxis=False,               # allow labels above 100% to show
             line=dict(color="crimson", width=3)
         ))
         fig.update_layout(
