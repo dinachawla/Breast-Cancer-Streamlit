@@ -85,7 +85,7 @@ FEATURE_GROUPS = {
     "Texture": ["mean texture"]
 }
 
-# Session state init
+# Session‐state init
 if "reset_trigger" not in st.session_state:
     st.session_state.reset_trigger = None
 
@@ -169,6 +169,7 @@ with col_right:
             mode="lines+markers+text",
             text=[f"{p:.1f}%" for p in lik_df["% Malignant"]],
             textposition="top center",
+            cliponaxis=False,           # allow labels above 100%
             line=dict(color="crimson", width=3)
         ))
         fig.update_layout(
@@ -176,7 +177,7 @@ with col_right:
             yaxis_title="% of Similar Cases that were Malignant",
             yaxis_range=[0,100],
             height=500,
-            margin=dict(l=20, r=20, t=100, b=80)  # increased top margin
+            margin=dict(l=20, r=20, t=100, b=80)
         )
         st.plotly_chart(fig, use_container_width=True)
     else:
