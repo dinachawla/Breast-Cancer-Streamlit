@@ -8,7 +8,7 @@ from sklearn.datasets import load_breast_cancer
 
 st.set_page_config(layout="wide")
 
-# Sticky styling + dark‐mode metric boxes
+# Sticky styling + dark-mode metric boxes
 st.markdown("""
     <style>
     [data-testid="column"]:nth-of-type(3) > div {
@@ -118,20 +118,17 @@ with col_left:
         cols = st.columns(len(feats))
         for container, feat in zip(cols, feats):
             with container:
-                coef = feature_coefs.get(feat, 0.0)
+                coef = feature_coefs[feat]
                 direction = "Increasing" if coef > 0 else "Decreasing"
                 low, high, step, avg = percentile_bounds[feat]
 
-                st.markdown(
-                    f"""
+                st.markdown(f"""
 <div class='metric-box'>
   <h4>{feat.title()}</h4>
   <p><em>Population average: {avg:.3f}</em></p>
   <p><strong>{direction}</strong> {feat} indicates malignancy.</p>
 </div>
-""",
-                    unsafe_allow_html=True
-                )
+""", unsafe_allow_html=True)
 
                 st.slider(
                     label="", key=f"s_{feat}",
@@ -154,28 +151,37 @@ with col_left:
 
 with col_right:
     st.subheader("Feature-Level Malignancy Likelihood")
-    records = []
+    likelihoods = []
     for feat, user_val in values.items():
-        m = 0.05 * user_val
-        slice_df = df[(df[feat] >= user_val - m) & (df[feat] <= user_val + m)]
-        pct = 100 * slice_df["is_malignant"].mean() if not slice_df.empty else None
-        records.append((feat, user_val, pct, len(slice_df)))
+        margin = 0.05 * user_val
+        nearby = df[(df[feat] >= user_val - margin) & (df[feat] <= user_val + margin)]
+        pct = 100 * nearby["is_malignant"].mean() if not nearby.empty else None
 
-    lik_df = pd.DataFrame(records, columns=["Feature","Value","% Malignant","Count"]).dropna()
+        # invert for features with negative coef so "up" always means more malignant
+        if pct is not None and feature_coefs[feat] < 0:
+            pct = 100 - pct
+
+        likelihoods.append((feat, user_val, pct, len(nearby)))
+
+    lik_df = pd.DataFrame(
+        likelihoods,
+        columns=["Feature","User Value","% Malignancy Indicator","Cases"]
+    ).dropna()
+
     if not lik_df.empty:
         fig = go.Figure()
         fig.add_trace(go.Scatter(
             x=lik_df["Feature"],
-            y=lik_df["% Malignant"],
+            y=lik_df["% Malignancy Indicator"],
             mode="lines+markers+text",
-            text=[f"{p:.1f}%" for p in lik_df["% Malignant"]],
+            text=[f"{p:.1f}%" for p in lik_df["% Malignancy Indicator"]],
             textposition="top center",
             cliponaxis=False,
             line=dict(color="crimson", width=3)
         ))
         fig.update_layout(
             xaxis_title="Tumor Feature",
-            yaxis_title="% of Similar Cases that were Malignant",
+            yaxis_title="% Malignancy Indicator",
             yaxis_range=[0,100],
             height=500,
             margin=dict(l=10, r=10, t=10, b=40)
@@ -184,7 +190,7 @@ with col_right:
     else:
         st.info("Not enough data to show chart.")
 
-    # — Diagnosis Estimate with separate count line and single icon —
+    # Diagnosis Estimate
     st.subheader("Diagnosis Estimate")
     ordered = [f for grp in FEATURE_GROUPS.values() for f in grp]
     X = np.array([[values[f] for f in ordered]])
