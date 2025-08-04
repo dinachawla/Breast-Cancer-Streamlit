@@ -27,11 +27,6 @@ st.markdown("""
         border-radius: 0.5rem;
         margin-bottom: 1rem;
     }
-    .metric-box strong {
-        display: block;
-        margin-bottom: 0.25rem;
-        font-size: 1rem;
-    }
     .metric-box p {
         margin: 0 0 0.5rem 0;
         font-size: 0.9rem;
@@ -53,7 +48,7 @@ def load_model(path: Path):
 
 pipe = load_model(MODEL_PATH)
 
-# Extract coefficients from the final estimator
+# Pull out the final estimator’s coefs
 model = pipe.steps[-1][1]
 raw_coefs = getattr(model, 'coef_', [[0]*len(pipe.feature_names_in_)])[0]
 
@@ -67,7 +62,7 @@ SELECTED_FEATURES = [
 ]
 feature_coefs = {feat: float(raw_coefs[i]) for i, feat in enumerate(SELECTED_FEATURES)}
 
-# Precompute percentile bounds
+# Percentile bounds
 percentile_bounds = {}
 for feat in SELECTED_FEATURES:
     low, high = np.percentile(df[feat], [5, 95])
@@ -85,7 +80,7 @@ FEATURE_GROUPS = {
     "Texture": ["mean texture"]
 }
 
-# Session state init
+# Session-state init
 if "reset_trigger" not in st.session_state:
     st.session_state.reset_trigger = None
 
@@ -120,16 +115,17 @@ with col_left:
             with container:
                 coef = feature_coefs.get(feat, 0.0)
                 direction_word = "Increasing" if coef > 0 else "Decreasing"
-                # only bold the direction_word now
-                direction_desc_html = f"<strong>{direction_word}</strong> {feat} indicates malignancy."
-
                 low, high, step, avg = percentile_bounds[feat]
+
+                # — Subheading + direction on one line —
                 st.markdown(
                     f"""
 <div class='metric-box'>
-  <strong>{feat.title()}</strong>
+  <p style='margin-bottom:0.25rem;'>
+    <strong style='display:inline-block; font-size:1rem'>{feat.title()}</strong>
+    &nbsp;<strong style='display:inline'>{direction_word}</strong> {feat} indicates malignancy.
+  </p>
   <p><em>Population average: {avg:.3f}</em></p>
-  <p>{direction_desc_html}</p>
 </div>
 """,
                     unsafe_allow_html=True
