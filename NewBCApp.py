@@ -8,7 +8,7 @@ from sklearn.datasets import load_breast_cancer
 
 st.set_page_config(layout="wide")
 
-# Sticky styling + dark‐mode metric boxes
+# Sticky styling + dark-mode metric boxes
 st.markdown("""
     <style>
     [data-testid="column"]:nth-of-type(3) > div {
@@ -53,7 +53,7 @@ def load_model(path: Path):
 
 pipe = load_model(MODEL_PATH)
 
-# Extract coefficients from the final estimator
+# Extract coefficients
 model = pipe.steps[-1][1]
 raw_coefs = getattr(model, 'coef_', [[0]*len(pipe.feature_names_in_)])[0]
 
@@ -67,7 +67,7 @@ SELECTED_FEATURES = [
 ]
 feature_coefs = {feat: float(raw_coefs[i]) for i, feat in enumerate(SELECTED_FEATURES)}
 
-# Precompute percentile bounds
+# Precompute percentiles
 percentile_bounds = {}
 for feat in SELECTED_FEATURES:
     low, high = np.percentile(df[feat], [5, 95])
@@ -85,7 +85,7 @@ FEATURE_GROUPS = {
     "Texture": ["mean texture"]
 }
 
-# Session state init
+# Session-state init
 if "reset_trigger" not in st.session_state:
     st.session_state.reset_trigger = None
 
@@ -122,7 +122,6 @@ with col_left:
                 direction = "Increasing" if coef > 0 else "Decreasing"
                 low, high, step, avg = percentile_bounds[feat]
 
-                # Three‐line box: name, avg, direction
                 st.markdown(
                     f"""
 <div class='metric-box'>
@@ -130,8 +129,7 @@ with col_left:
   <p><em>Population average: {avg:.3f}</em></p>
   <p><strong>{direction}</strong> {feat} indicates malignancy.</p>
 </div>
-""",
-                    unsafe_allow_html=True
+""", unsafe_allow_html=True
                 )
 
                 st.slider(
@@ -177,7 +175,7 @@ with col_right:
             yaxis_title="% of Similar Cases that were Malignant",
             yaxis_range=[0,100],
             height=500,
-            margin=dict(l=10, r=10, t=10, b=40)
+            margin=dict(l=20, r=20, t=40, b=80, pad=10)  # increased padding
         )
         st.plotly_chart(fig, use_container_width=True)
     else:
