@@ -53,7 +53,7 @@ def load_model(path: Path):
 
 pipe = load_model(MODEL_PATH)
 
-# Extract coefficients
+# Extract coefficients from the final estimator
 model = pipe.steps[-1][1]
 raw_coefs = getattr(model, 'coef_', [[0]*len(pipe.feature_names_in_)])[0]
 
@@ -85,7 +85,7 @@ FEATURE_GROUPS = {
     "Texture": ["mean texture"]
 }
 
-# Session‐state init
+# Session state init
 if "reset_trigger" not in st.session_state:
     st.session_state.reset_trigger = None
 
@@ -122,6 +122,7 @@ with col_left:
                 direction = "Increasing" if coef > 0 else "Decreasing"
                 low, high, step, avg = percentile_bounds[feat]
 
+                # Three‐line box: name, avg, direction
                 st.markdown(
                     f"""
 <div class='metric-box'>
@@ -129,7 +130,8 @@ with col_left:
   <p><em>Population average: {avg:.3f}</em></p>
   <p><strong>{direction}</strong> {feat} indicates malignancy.</p>
 </div>
-""", unsafe_allow_html=True
+""",
+                    unsafe_allow_html=True
                 )
 
                 st.slider(
@@ -164,12 +166,10 @@ with col_right:
     if not lik_df.empty:
         fig = go.Figure()
         fig.add_trace(go.Scatter(
-            x=lik_df["Feature"],
-            y=lik_df["% Malignant"],
+            x=lik_df["Feature"], y=lik_df["% Malignant"],
             mode="lines+markers+text",
             text=[f"{p:.1f}%" for p in lik_df["% Malignant"]],
             textposition="top center",
-            cliponaxis=False,           # allow labels above 100%
             line=dict(color="crimson", width=3)
         ))
         fig.update_layout(
@@ -177,7 +177,7 @@ with col_right:
             yaxis_title="% of Similar Cases that were Malignant",
             yaxis_range=[0,100],
             height=500,
-            margin=dict(l=20, r=20, t=100, b=80)
+            margin=dict(l=10, r=10, t=10, b=40)
         )
         st.plotly_chart(fig, use_container_width=True)
     else:
