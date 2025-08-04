@@ -8,7 +8,7 @@ from sklearn.datasets import load_breast_cancer
 
 st.set_page_config(layout="wide")
 
-# Sticky styling + dark-mode metric boxes
+# Sticky styling + dark‐mode metric boxes
 st.markdown("""
     <style>
     [data-testid="column"]:nth-of-type(3) > div {
@@ -184,7 +184,7 @@ with col_right:
     else:
         st.info("Not enough data to show chart.")
 
-    # — Diagnosis Estimate with separate count line —
+    # — Diagnosis Estimate with separate count line and single icon —
     st.subheader("Diagnosis Estimate")
     ordered = [f for grp in FEATURE_GROUPS.values() for f in grp]
     X = np.array([[values[f] for f in ordered]])
@@ -211,7 +211,7 @@ with col_right:
         conf = "High"
 
     fn(
-        f"{icon} **{label}**  \n"
+        f"**{label}**  \n"
         f"Probability: **{prob:.1%}** ({conf} Confidence)  \n"
         f"{count} out of 100 similar cases were {label.lower()}.",
         icon=icon
