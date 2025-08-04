@@ -8,7 +8,7 @@ from sklearn.datasets import load_breast_cancer
 
 st.set_page_config(layout="wide")
 
-# Sticky styling + dark‐mode metric boxes
+# Sticky styling + dark-mode metric boxes
 st.markdown("""
     <style>
     [data-testid="column"]:nth-of-type(3) > div {
@@ -85,7 +85,7 @@ FEATURE_GROUPS = {
     "Texture": ["mean texture"]
 }
 
-# Session‐state init
+# Session state init
 if "reset_trigger" not in st.session_state:
     st.session_state.reset_trigger = None
 
@@ -184,12 +184,12 @@ with col_right:
     else:
         st.info("Not enough data to show chart.")
 
-    # — Diagnosis Estimate with confidence + count —
+    # — Diagnosis Estimate with separate count line —
     st.subheader("Diagnosis Estimate")
     ordered = [f for grp in FEATURE_GROUPS.values() for f in grp]
     X = np.array([[values[f] for f in ordered]])
     p_malignant = pipe.predict_proba(X)[0,1]
-    # decide class, probability, and count
+
     if p_malignant >= 0.5:
         label = "MALIGNANT"
         prob = p_malignant
@@ -203,7 +203,6 @@ with col_right:
         icon = "✅"
         fn = st.success
 
-    # simple confidence buckets (adjust thresholds as needed)
     if prob < 0.6:
         conf = "Low"
     elif prob < 0.85:
@@ -212,8 +211,8 @@ with col_right:
         conf = "High"
 
     fn(
-        f"{icon} **{label}**\n"
-        f"Probability: **{prob:.1%}** ({conf} Confidence)\n"
+        f"{icon} **{label}**  \n"
+        f"Probability: **{prob:.1%}** ({conf} Confidence)  \n"
         f"{count} out of 100 similar cases were {label.lower()}.",
         icon=icon
     )
