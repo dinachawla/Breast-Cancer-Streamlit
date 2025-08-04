@@ -8,7 +8,6 @@ from sklearn.datasets import load_breast_cancer
 
 st.set_page_config(layout="wide")
 
-# Sticky CSS and metric description style
 st.markdown("""
     <style>
     [data-testid="column"]:nth-of-type(3) > div {
@@ -21,10 +20,19 @@ st.markdown("""
         box-shadow: 0 2px 6px rgba(0,0,0,0.04);
         z-index: 2;
     }
-    .custom-box { background-color: #1e1e1e; padding: 1rem; border-radius: 0.5rem; }
-    .custom-title { color: white; margin-bottom: 0.2rem; }
-    .custom-caption { color: lightgray; font-size: 0.85rem; }
-    .metric-desc { color: lightgray; font-size: 0.8rem; margin-top: 0.25rem; margin-bottom: 0.5rem; }
+    .custom-box {
+        background-color: #1e1e1e;
+        padding: 1rem;
+        border-radius: 0.5rem;
+    }
+    .custom-title {
+        color: white;
+        margin-bottom: 0.2rem;
+    }
+    .custom-caption {
+        color: lightgray;
+        font-size: 0.85rem;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -33,18 +41,47 @@ TEST_ACC = 0.965
 
 data = load_breast_cancer()
 df = pd.DataFrame(data.data, columns=data.feature_names)
-# scikit: 0=malignant, 1=benign
-pipe = joblib.load(MODEL_PATH)
+df['target'] = data.target  # ✅ Corrected: No longer flipping labels
 
-# Dynamic tooltips based on model coefficients
-lr = pipe.named_steps['logisticregression']
-coefs = dict(zip(pipe.feature_names_in_, lr.coef_[0]))
-BASE_TOOLTIPS = {
+SELECTED_FEATURES = [
+    "mean radius", "worst radius",
+    "mean perimeter", "worst perimeter",
+    "mean area", "worst area",
+    "mean concavity", "worst concavity",
+    "mean concave points", "worst concave points",
+    "mean texture"
+]
+
+@st.cache_resource
+def load_model(path: Path):
+    return joblib.load(path)
+
+pipe = load_model(MODEL_PATH)
+
+percentile_bounds = {}
+for col in SELECTED_FEATURES:
+    low = np.percentile(df[col], 5)
+    high = np.percentile(df[col], 95)
+    avg = df[col].mean()
+    step = 0.001 if high - low < 10 else 0.1 if high - low < 100 else 1
+    percentile_bounds[col] = (low, high, step, avg)
+
+FEATURE_GROUPS = {
+    "Core Predictive Features": ["mean radius", "mean perimeter", "mean area"],
+    "Radius (mm)": ["worst radius"],
+    "Perimeter (mm)": ["worst perimeter"],
+    "Area (mm²)": ["worst area"],
+    "Concavity": ["mean concavity", "worst concavity"],
+    "Concave Points": ["mean concave points", "worst concave points"],
+    "Texture": ["mean texture"]
+}
+
+TOOLTIPS = {
     "mean radius": "Average distance from center to tumor edge",
-    "worst radius": "Largest observed distance from center to edge",
     "mean perimeter": "Average boundary length of the tumor",
-    "worst perimeter": "Longest boundary length observed",
     "mean area": "Average surface area of the tumor",
+    "worst radius": "Largest observed distance from center to edge",
+    "worst perimeter": "Longest boundary length observed",
     "worst area": "Largest surface area measured",
     "mean concavity": "Average severity of concave portions",
     "worst concavity": "Maximum concavity observed",
@@ -52,45 +89,27 @@ BASE_TOOLTIPS = {
     "worst concave points": "Max number of concave points",
     "mean texture": "Standard deviation of gray-scale values"
 }
-TOOLTIPS = {
-    feat: f"{desc}. Higher values {'increase' if coefs.get(feat,0)>0 else 'decrease'} malignancy risk."
-    for feat, desc in BASE_TOOLTIPS.items()
-}
-SELECTED_FEATURES = list(TOOLTIPS.keys())
 
-# Compute percentile bounds for sliders
-percentile_bounds = {}
-for col in SELECTED_FEATURES:
-    low = np.percentile(df[col], 5)
-    high = np.percentile(df[col], 95)
-    avg = df[col].mean()
-    rng = high - low
-    step = 0.001 if rng < 10 else 0.1 if rng < 100 else 1
-    percentile_bounds[col] = (low, high, step, avg)
-
-# Group into mean and worst
-FEATURE_GROUPS = {
-    "Mean-Based Metrics":  [f for f in SELECTED_FEATURES if f.startswith('mean')],
-    "Worst-Based Metrics": [f for f in SELECTED_FEATURES if f.startswith('worst')]
-}
-
-# Session-state initialization
-if 'reset_trigger' not in st.session_state:
+if "reset_trigger" not in st.session_state:
     st.session_state.reset_trigger = None
+
 for key in SELECTED_FEATURES:
     if f"s_{key}" not in st.session_state or f"n_{key}" not in st.session_state:
         _, _, _, avg = percentile_bounds[key]
         st.session_state[f"s_{key}"] = avg
         st.session_state[f"n_{key}"] = avg
-if st.session_state.reset_trigger:
+
+if st.session_state.reset_trigger is not None:
     reset_key = st.session_state.reset_trigger
-    _, _, _, avg = percentile_bounds[reset_key]
-    st.session_state[f"s_{reset_key}"] = avg
-    st.session_state[f"n_{reset_key}"] = avg
+    if reset_key in percentile_bounds:
+        _, _, _, avg = percentile_bounds[reset_key]
+        st.session_state[f"s_{reset_key}"] = avg
+        st.session_state[f"n_{reset_key}"] = avg
     st.session_state.reset_trigger = None
 
 def sync_slider(key):
     st.session_state[f"s_{key}"] = st.session_state[f"n_{key}"]
+
 def sync_number_input(key):
     st.session_state[f"n_{key}"] = st.session_state[f"s_{key}"]
 
@@ -104,66 +123,148 @@ with left_col:
     values = {}
     for group_title, keys in FEATURE_GROUPS.items():
         st.markdown(f"### {group_title}")
-        for i in range(0, len(keys), 2):
-            row_feats = keys[i:i+2]
-            cols = st.columns(len(row_feats))
-            for col_feat, feat in zip(cols, row_feats):
-                with col_feat:
-                    low, high, step, avg = percentile_bounds[feat]
-                    st.markdown("<div class='custom-box'>", unsafe_allow_html=True)
-                    st.markdown(f"<h4 class='custom-title'>{feat.title()}</h4>", unsafe_allow_html=True)
-                    st.markdown(f"<p class='custom-caption'>Avg: {avg:.3f}</p>", unsafe_allow_html=True)
+        if group_title == "Core Predictive Features":
+            first_row = st.columns(2)
+            for col, key in zip(first_row, keys[:2]):
+                with col:
+                    low, high, step, avg = percentile_bounds[key]
+                    st.markdown(
+                        f"""
+                        <div class='custom-box'>
+                        <h4 class='custom-title'>{key.title()}</h4>
+                        <p class='custom-caption'>{TOOLTIPS.get(key, '')} (Avg: {avg:.3f})</p>
+                        """,
+                        unsafe_allow_html=True
+                    )
                     slider_val = st.slider(
-                        label="", key=f"s_{feat}",
+                        label="", key=f"s_{key}",
                         min_value=float(low), max_value=float(high),
-                        step=float(step), value=st.session_state[f"s_{feat}"],
-                        on_change=sync_number_input, args=(feat,)
+                        step=float(step), label_visibility="collapsed",
+                        on_change=sync_number_input, args=(key,)
                     )
                     number_val = st.number_input(
-                        label="Exact", key=f"n_{feat}",
+                        label="Exact", key=f"n_{key}",
                         min_value=float(low), max_value=float(high),
-                        step=float(step), value=slider_val,
-                        on_change=sync_slider, args=(feat,)
+                        step=float(step), format="%.4f" if step < 1 else "%.0f",
+                        on_change=sync_slider, args=(key,)
                     )
-                    st.markdown(f"<div class='metric-desc'>{TOOLTIPS[feat]}</div>", unsafe_allow_html=True)
+                    values[key] = number_val
+                    if st.button(f"Reset {key.title()}", key=f"reset_{key}"):
+                        st.session_state.reset_trigger = key
+                        st.experimental_rerun()
                     st.markdown("</div>", unsafe_allow_html=True)
-                    values[feat] = number_val
+
+            st.markdown("\n")
+            low, high, step, avg = percentile_bounds[keys[2]]
+            key = keys[2]
+            st.markdown(
+                f"""
+                <div class='custom-box'>
+                <h4 class='custom-title'>{key.title()}</h4>
+                <p class='custom-caption'>{TOOLTIPS.get(key, '')} (Avg: {avg:.3f})</p>
+                """,
+                unsafe_allow_html=True
+            )
+            slider_val = st.slider(
+                label="", key=f"s_{key}",
+                min_value=float(low), max_value=float(high),
+                step=float(step), label_visibility="collapsed",
+                on_change=sync_number_input, args=(key,)
+            )
+            number_val = st.number_input(
+                label="Exact", key=f"n_{key}",
+                min_value=float(low), max_value=float(high),
+                step=float(step), format="%.4f" if step < 1 else "%.0f",
+                on_change=sync_slider, args=(key,)
+            )
+            values[key] = number_val
+            if st.button(f"Reset {key.title()}", key=f"reset_{key}"):
+                st.session_state.reset_trigger = key
+                st.experimental_rerun()
+            st.markdown("</div>", unsafe_allow_html=True)
+        else:
+            cols = st.columns(len(keys))
+            for col, key in zip(cols, keys):
+                with col:
+                    low, high, step, avg = percentile_bounds[key]
+                    st.markdown(
+                        f"""
+                        <div class='custom-box'>
+                        <h4 class='custom-title'>{key.title()}</h4>
+                        <p class='custom-caption'>{TOOLTIPS.get(key, '')} (Avg: {avg:.3f})</p>
+                        """,
+                        unsafe_allow_html=True
+                    )
+                    slider_val = st.slider(
+                        label="", key=f"s_{key}",
+                        min_value=float(low), max_value=float(high),
+                        step=float(step), label_visibility="collapsed",
+                        on_change=sync_number_input, args=(key,)
+                    )
+                    number_val = st.number_input(
+                        label="Exact", key=f"n_{key}",
+                        min_value=float(low), max_value=float(high),
+                        step=float(step), format="%.4f" if step < 1 else "%.0f",
+                        on_change=sync_slider, args=(key,)
+                    )
+                    values[key] = number_val
+                    if st.button(f"Reset {key.title()}", key=f"reset_{key}"):
+                        st.session_state.reset_trigger = key
+                        st.experimental_rerun()
+                    st.markdown("</div>", unsafe_allow_html=True)
 
 with right_col:
     st.subheader("Feature-Level Malignancy Likelihood")
-    feats, probs = [], []
-    base_vals = {f: df[f].mean() for f in SELECTED_FEATURES}
-    for feat, user_val in values.items():
-        inp = base_vals.copy(); inp[feat] = user_val
-        Xf = pd.DataFrame([inp])[pipe.feature_names_in_]
-        p_feat = pipe.predict_proba(Xf)[0, 1] * 100
-        feats.append(feat)
-        probs.append(p_feat)
-    likelihood_df = pd.DataFrame({"Feature": feats, "% Malignant": probs})
-    fig = go.Figure(go.Scatter(
-        x=likelihood_df['Feature'], y=likelihood_df['% Malignant'],
-        mode='lines+markers+text', text=[f"{p:.1f}%" for p in likelihood_df['% Malignant']],
-        textposition='top center', line=dict(color='crimson', width=3)
-    ))
-    fig.update_layout(
-        xaxis_title='Tumor Feature', yaxis_title='% of Similar Cases that were Malignant',
-        yaxis_range=[0, 100], height=500, margin=dict(l=10, r=10, t=10, b=40)
-    )
-    st.plotly_chart(fig, use_container_width=True)
+    likelihoods = []
+    for feature, user_val in values.items():
+        margin = 0.05 * user_val
+        min_val = user_val - margin
+        max_val = user_val + margin
+        nearby_cases = df[(df[feature] >= min_val) & (df[feature] <= max_val)]
+        malignant_pct = 100 * nearby_cases['target'].mean() if not nearby_cases.empty else None
+        likelihoods.append((feature, user_val, malignant_pct, len(nearby_cases)))
+
+    likelihood_df = pd.DataFrame(likelihoods, columns=["Feature", "User Value", "% Malignant", "Cases in Range"])
+    filtered_df = likelihood_df.dropna()
+
+    if not filtered_df.empty:
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=filtered_df['Feature'],
+            y=filtered_df['% Malignant'],
+            mode='lines+markers+text',
+            name='% Malignant',
+            line=dict(color='crimson', width=3),
+            text=[f"{p:.1f}%" for p in filtered_df['% Malignant']],
+            textposition="top center"
+        ))
+        fig.update_layout(
+            xaxis_title='Tumor Feature',
+            yaxis_title='% of Similar Cases that were Malignant',
+            yaxis_range=[0, 100],
+            height=500,
+            margin=dict(l=10, r=10, t=10, b=40)
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("Not enough data to show malignancy likelihood chart.")
 
     st.subheader("Diagnosis Estimate")
-    input_df = pd.DataFrame([values])[pipe.feature_names_in_]
-    p = pipe.predict_proba(input_df)[0, 1]
+    input_df = pd.DataFrame([values])
+    X = input_df[pipe.feature_names_in_]
+    p = pipe.predict_proba(X)[0, 1]
+
     if p >= 0.85:
         confidence = "High Confidence"
     elif p >= 0.6:
         confidence = "Moderate Confidence"
     else:
         confidence = "Low Confidence"
+
     if p >= 0.5:
         st.error(f"**MALIGNANT**  \nProbability: **{p:.1%}** ({confidence})", icon="🚨")
     else:
-        st.success(f"**BENIGN**  \nProbability: **{(1-p):.1%}** ({confidence})", icon="✅")
+        st.success(f"**BENIGN**  \nProbability: **{1 - p:.1%}** ({confidence})", icon="✅")
 
     diffs = {k: abs(values[k] - df[k].mean()) for k in values}
     top_feature = max(diffs, key=diffs.get)
