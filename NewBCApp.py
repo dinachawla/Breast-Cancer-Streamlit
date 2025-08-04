@@ -8,7 +8,7 @@ from sklearn.datasets import load_breast_cancer
 
 st.set_page_config(layout="wide")
 
-# Sticky styling for the right column
+# Sticky styling + dark-mode metric boxes
 st.markdown("""
     <style>
     [data-testid="column"]:nth-of-type(3) > div {
@@ -21,7 +21,8 @@ st.markdown("""
         z-index: 2;
     }
     .metric-box {
-        background-color: #f5f5f5;
+        background-color: #2a2a2a;
+        color: #e1e1e1;
         padding: 0.75rem;
         border-radius: 0.5rem;
         margin-bottom: 1rem;
@@ -51,7 +52,7 @@ def load_model(path: Path):
 
 pipe = load_model(MODEL_PATH)
 
-# Extract coefficients (assumes final step is your classifier)
+# Extract coefficients from the final estimator
 model = pipe.steps[-1][1]
 raw_coefs = getattr(model, 'coef_', [[0]*len(pipe.feature_names_in_)])[0]
 
@@ -63,12 +64,7 @@ SELECTED_FEATURES = [
     "mean concave points", "worst concave points",
     "mean texture"
 ]
-
-# Coerce each coef to a Python float so coef > 0 is safe
-feature_coefs = {
-    feat: float(raw_coefs[i])
-    for i, feat in enumerate(SELECTED_FEATURES)
-}
+feature_coefs = {feat: float(raw_coefs[i]) for i, feat in enumerate(SELECTED_FEATURES)}
 
 # Precompute percentile bounds
 percentile_bounds = {}
@@ -169,9 +165,16 @@ with col_right:
             x=lik_df["Feature"], y=lik_df["% Malignant"],
             mode="lines+markers+text",
             text=[f"{p:.1f}%" for p in lik_df["% Malignant"]],
-            textposition="top center", line=dict(width=3)
+            textposition="top center",
+            line=dict(color="crimson", width=3)
         ))
-        fig.update_layout(yaxis_range=[0,100], margin=dict(b=40))
+        fig.update_layout(
+            xaxis_title="Tumor Feature",
+            yaxis_title="% of Similar Cases that were Malignant",
+            yaxis_range=[0,100],
+            height=500,
+            margin=dict(l=10, r=10, t=10, b=40)
+        )
         st.plotly_chart(fig, use_container_width=True)
     else:
         st.info("Not enough data to show chart.")
