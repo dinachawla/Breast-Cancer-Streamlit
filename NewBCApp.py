@@ -41,16 +41,19 @@ def load_model(path: Path):
 
 pipe = load_model(MODEL_PATH)
 
-# Compute percentiles
-percentile_bounds = {}
-for col in SELECTED_FEATURES := [
+# Define which features we’re exposing
+SELECTED_FEATURES = [
     "mean radius", "worst radius",
     "mean perimeter", "worst perimeter",
     "mean area", "worst area",
     "mean concavity", "worst concavity",
     "mean concave points", "worst concave points",
     "mean texture"
-]:
+]
+
+# Compute percentile bounds for each feature
+percentile_bounds = {}
+for col in SELECTED_FEATURES:
     low = np.percentile(df[col], 5)
     high = np.percentile(df[col], 95)
     avg = df[col].mean()
@@ -178,14 +181,14 @@ with right_col:
 
         if p >= 0.5:
             st.error(
-                f"🚨 **MALIGNANT**  \n"
+                "🚨 **MALIGNANT**  \n"
                 f"Probability: **{p:.1%}**\n"
                 f"(≈ {p*100:.0f} out of 100 similar cases)",
                 icon="🚨"
             )
         else:
             st.success(
-                f"🫰 **BENIGN**  \n"
+                "🫰 **BENIGN**  \n"
                 f"Probability: **{(1-p):.1%}**\n"
                 f"(≈ {(1-p)*100:.0f} out of 100 similar cases)",
                 icon="✅"
