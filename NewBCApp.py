@@ -133,7 +133,8 @@ with left_col:
                 values[key] = st.session_state[f"n_{key}"]
 
 with right_col:
-    with st.container(key="sticky-right-column"):
+    # simply use a container without any key argument
+    with st.container():
         st.subheader("Feature-Level Malignancy Likelihood")
         likelihoods = []
         for feature, user_val in values.items():
