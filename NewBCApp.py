@@ -85,7 +85,7 @@ FEATURE_GROUPS = {
     "Texture": ["mean texture"]
 }
 
-# Session state init
+# Session‐state init
 if "reset_trigger" not in st.session_state:
     st.session_state.reset_trigger = None
 
@@ -122,7 +122,6 @@ with col_left:
                 direction = "Increasing" if coef > 0 else "Decreasing"
                 low, high, step, avg = percentile_bounds[feat]
 
-                # Three‐line box: name, avg, direction
                 st.markdown(
                     f"""
 <div class='metric-box'>
@@ -171,7 +170,7 @@ with col_right:
             mode="lines+markers+text",
             text=[f"{p:.1f}%" for p in lik_df["% Malignant"]],
             textposition="top center",
-            cliponaxis=False,               # allow labels above 100% to show
+            cliponaxis=False,
             line=dict(color="crimson", width=3)
         ))
         fig.update_layout(
@@ -185,13 +184,38 @@ with col_right:
     else:
         st.info("Not enough data to show chart.")
 
+    # — Diagnosis Estimate with confidence + count —
     st.subheader("Diagnosis Estimate")
     ordered = [f for grp in FEATURE_GROUPS.values() for f in grp]
     X = np.array([[values[f] for f in ordered]])
-    prob = pipe.predict_proba(X)[0,1]
-    if prob >= 0.5:
-        st.error(f"🚨 MALIGNANT: {prob:.1%}", icon="🚨")
+    p_malignant = pipe.predict_proba(X)[0,1]
+    # decide class, probability, and count
+    if p_malignant >= 0.5:
+        label = "MALIGNANT"
+        prob = p_malignant
+        count = int(round(p_malignant * 100))
+        icon = "🚨"
+        fn = st.error
     else:
-        st.success(f"🫰 BENIGN: {(1-prob):.1%}", icon="✅")
+        label = "BENIGN"
+        prob = 1 - p_malignant
+        count = int(round((1 - p_malignant) * 100))
+        icon = "✅"
+        fn = st.success
+
+    # simple confidence buckets (adjust thresholds as needed)
+    if prob < 0.6:
+        conf = "Low"
+    elif prob < 0.85:
+        conf = "Medium"
+    else:
+        conf = "High"
+
+    fn(
+        f"{icon} **{label}**\n"
+        f"Probability: **{prob:.1%}** ({conf} Confidence)\n"
+        f"{count} out of 100 similar cases were {label.lower()}.",
+        icon=icon
+    )
 
     st.caption("For educational use only; not medical advice.")
