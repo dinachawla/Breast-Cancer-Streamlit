@@ -119,10 +119,8 @@ with col_left:
         for container, feat in zip(cols, feats):
             with container:
                 coef = feature_coefs.get(feat, 0.0)
-                if coef > 0:
-                    direction_desc = f"Higher **{feat}** pushes toward higher malignancy risk."
-                else:
-                    direction_desc = f"Higher **{feat}** pushes toward greater benign likelihood."
+                direction_word = "Increasing" if coef > 0 else "Decreasing"
+                direction_desc = f"{direction_word} **{feat}** indicates malignancy."
 
                 low, high, step, avg = percentile_bounds[feat]
                 # Combined info box: subheading, metric context, directionality
