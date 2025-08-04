@@ -30,6 +30,7 @@ st.markdown("""
     .metric-box strong {
         display: block;
         margin-bottom: 0.25rem;
+        font-size: 1rem;
     }
     .metric-box p {
         margin: 0 0 0.5rem 0;
@@ -119,17 +120,23 @@ with col_left:
             with container:
                 coef = feature_coefs.get(feat, 0.0)
                 if coef > 0:
-                    desc = f"Higher **{feat}** pushes toward higher malignancy risk."
+                    direction_desc = f"Higher **{feat}** pushes toward higher malignancy risk."
                 else:
-                    desc = f"Higher **{feat}** pushes toward greater benign likelihood."
+                    direction_desc = f"Higher **{feat}** pushes toward greater benign likelihood."
 
+                low, high, step, avg = percentile_bounds[feat]
+                # Combined info box: subheading, metric context, directionality
                 st.markdown(
-                    f"<div class='metric-box'><p>{desc}</p>"
-                    f"<strong>{feat.title()}</strong></div>",
+                    f"""
+<div class='metric-box'>
+  <strong>{feat.title()}</strong>
+  <p><em>Population average: {avg:.3f}</em></p>
+  <p>{direction_desc}</p>
+</div>
+""",
                     unsafe_allow_html=True
                 )
 
-                low, high, step, avg = percentile_bounds[feat]
                 st.slider(
                     label="", key=f"s_{feat}",
                     min_value=float(low), max_value=float(high),
