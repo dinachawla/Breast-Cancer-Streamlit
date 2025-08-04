@@ -105,7 +105,7 @@ def sync_slider(f): st.session_state[f"s_{f}"] = st.session_state[f"n_{f}"]
 def sync_number(f): st.session_state[f"n_{f}"] = st.session_state[f"s_{f}"]
 
 # Build UI
-st.title("Breast Cancer ML Classifier 🩺")
+st.title("Cura - Breast Cancer ML Classifier 🩺")
 st.caption(f"Model hold-out accuracy: {TEST_ACC:.1%}")
 st.subheader("Adjust Tumor Characteristics")
 
