@@ -51,10 +51,9 @@ def load_model(path: Path):
 
 pipe = load_model(MODEL_PATH)
 
-# Extract coefficients from the final estimator
-# (adjust 'classifier' to your actual step name if needed)
+# Extract coefficients (assumes final step is your classifier)
 model = pipe.steps[-1][1]
-coefs = getattr(model, 'coef_', [[0]*len(data.feature_names)])[0]
+raw_coefs = getattr(model, 'coef_', [[0]*len(pipe.feature_names_in_)])[0]
 
 SELECTED_FEATURES = [
     "mean radius", "worst radius",
@@ -64,7 +63,12 @@ SELECTED_FEATURES = [
     "mean concave points", "worst concave points",
     "mean texture"
 ]
-feature_coefs = dict(zip(SELECTED_FEATURES, coefs))
+
+# Coerce each coef to a Python float so coef > 0 is safe
+feature_coefs = {
+    feat: float(raw_coefs[i])
+    for i, feat in enumerate(SELECTED_FEATURES)
+}
 
 # Precompute percentile bounds
 percentile_bounds = {}
@@ -84,7 +88,7 @@ FEATURE_GROUPS = {
     "Texture": ["mean texture"]
 }
 
-# Session‐state init
+# Session state init
 if "reset_trigger" not in st.session_state:
     st.session_state.reset_trigger = None
 
@@ -117,16 +121,18 @@ with col_left:
         cols = st.columns(len(feats))
         for container, feat in zip(cols, feats):
             with container:
-                coef = feature_coefs.get(feat, 0)
+                coef = feature_coefs.get(feat, 0.0)
                 if coef > 0:
                     desc = f"Higher **{feat}** pushes toward higher malignancy risk."
                 else:
                     desc = f"Higher **{feat}** pushes toward greater benign likelihood."
-                
-                st.markdown(f"<div class='metric-box'><p>{desc}</p>"
-                            f"<strong>{feat.title()}</strong>"
-                            "</div>", unsafe_allow_html=True)
-                
+
+                st.markdown(
+                    f"<div class='metric-box'><p>{desc}</p>"
+                    f"<strong>{feat.title()}</strong></div>",
+                    unsafe_allow_html=True
+                )
+
                 low, high, step, avg = percentile_bounds[feat]
                 st.slider(
                     label="", key=f"s_{feat}",
@@ -144,7 +150,7 @@ with col_left:
                 if st.button(f"Reset {feat.title()}", key=f"reset_{feat}"):
                     st.session_state.reset_trigger = feat
                     st.experimental_rerun()
-                
+
                 values[feat] = st.session_state[f"n_{feat}"]
 
 with col_right:
@@ -155,7 +161,7 @@ with col_right:
         slice_df = df[(df[feat] >= user_val - m) & (df[feat] <= user_val + m)]
         pct = 100 * slice_df["is_malignant"].mean() if not slice_df.empty else None
         records.append((feat, user_val, pct, len(slice_df)))
-    
+
     lik_df = pd.DataFrame(records, columns=["Feature","Value","% Malignant","Count"]).dropna()
     if not lik_df.empty:
         fig = go.Figure()
@@ -169,14 +175,14 @@ with col_right:
         st.plotly_chart(fig, use_container_width=True)
     else:
         st.info("Not enough data to show chart.")
-    
+
     st.subheader("Diagnosis Estimate")
     ordered = [f for grp in FEATURE_GROUPS.values() for f in grp]
     X = np.array([[values[f] for f in ordered]])
     prob = pipe.predict_proba(X)[0,1]
     if prob >= 0.5:
-        st.error(f"MALIGNANT: {prob:.1%}", icon="🚨")
+        st.error(f"🚨 MALIGNANT: {prob:.1%}", icon="🚨")
     else:
-        st.success(f"BENIGN: {(1-prob):.1%}", icon="✅")
-    
+        st.success(f"🫰 BENIGN: {(1-prob):.1%}", icon="✅")
+
     st.caption("For educational use only; not medical advice.")
