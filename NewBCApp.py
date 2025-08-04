@@ -8,7 +8,7 @@ from sklearn.datasets import load_breast_cancer
 
 st.set_page_config(layout="wide")
 
-# Sticky styling + dark-mode metric boxes
+# Sticky styling + dark‐mode metric boxes
 st.markdown("""
     <style>
     [data-testid="column"]:nth-of-type(3) > div {
@@ -53,7 +53,7 @@ def load_model(path: Path):
 
 pipe = load_model(MODEL_PATH)
 
-# Extract coefficients from the final estimator
+# Pull out final-estimator coefficients
 model = pipe.steps[-1][1]
 raw_coefs = getattr(model, 'coef_', [[0]*len(pipe.feature_names_in_)])[0]
 
@@ -66,6 +66,21 @@ SELECTED_FEATURES = [
     "mean texture"
 ]
 feature_coefs = {feat: float(raw_coefs[i]) for i, feat in enumerate(SELECTED_FEATURES)}
+
+# Friendly explanations for each metric
+METRIC_DESCRIPTIONS = {
+    "mean radius":       "Average distance from tumor center to its boundary.",
+    "worst radius":      "Largest radius observed, highlighting outlier growth.",
+    "mean perimeter":    "Average length of the tumor boundary.",
+    "worst perimeter":   "Maximum boundary length, indicating irregular expansion.",
+    "mean area":         "Average surface area of tumor cells.",
+    "worst area":        "Largest area observed, showing aggressive cell clusters.",
+    "mean concavity":    "Average concavity of the tumor outline; higher = more indentations.",
+    "worst concavity":   "Deepest indentations on the tumor boundary.",
+    "mean concave points":"Average count of concave points on the tumor edge.",
+    "worst concave points":"Maximum concave-point count, marking uneven growth.",
+    "mean texture":      "Average variation in gray-scale values, reflecting cell uniformity."
+}
 
 # Precompute percentile bounds
 percentile_bounds = {}
@@ -105,33 +120,35 @@ def sync_slider(f): st.session_state[f"s_{f}"] = st.session_state[f"n_{f}"]
 def sync_number(f): st.session_state[f"n_{f}"] = st.session_state[f"s_{f}"]
 
 # Build UI
-st.title("Cura - Breast Cancer ML Classifier 🩺")
+st.title("Cura – Breast Cancer ML Classifier 🩺")
 st.caption(f"Model hold-out accuracy: {TEST_ACC:.1%}")
 st.subheader("Adjust Tumor Characteristics")
 
-col_left, col_right = st.columns([1,1], gap="large")
+left_col, right_col = st.columns([1,1], gap="large")
 
-with col_left:
+with left_col:
     values = {}
-    for group, feats in FEATURE_GROUPS.items():
-        st.markdown(f"### {group}")
+    for group_title, feats in FEATURE_GROUPS.items():
+        st.markdown(f"### {group_title}")
         cols = st.columns(len(feats))
-        for container, feat in zip(cols, feats):
-            with container:
+        for col, feat in zip(cols, feats):
+            with col:
                 coef = feature_coefs[feat]
                 direction = "Increasing" if coef > 0 else "Decreasing"
                 low, high, step, avg = percentile_bounds[feat]
+                desc = METRIC_DESCRIPTIONS[feat]
 
                 st.markdown(f"""
 <div class='metric-box'>
   <h4>{feat.title()}</h4>
+  <p>{desc}</p>
   <p><em>Population average: {avg:.3f}</em></p>
   <p><strong>{direction}</strong> {feat} indicates malignancy.</p>
 </div>
 """, unsafe_allow_html=True)
 
                 st.slider(
-                    label="", key=f"s_{feat}",
+                    "", key=f"s_{feat}",
                     min_value=float(low), max_value=float(high),
                     step=float(step), label_visibility="collapsed",
                     on_change=sync_number, args=(feat,)
@@ -149,18 +166,15 @@ with col_left:
 
                 values[feat] = st.session_state[f"n_{feat}"]
 
-with col_right:
+with right_col:
     st.subheader("Feature-Level Malignancy Likelihood")
     likelihoods = []
     for feat, user_val in values.items():
-        margin = 0.05 * user_val
-        nearby = df[(df[feat] >= user_val - margin) & (df[feat] <= user_val + margin)]
+        m = 0.05 * user_val
+        nearby = df[(df[feat] >= user_val - m) & (df[feat] <= user_val + m)]
         pct = 100 * nearby["is_malignant"].mean() if not nearby.empty else None
-
-        # invert for features with negative coef so "up" always means more malignant
         if pct is not None and feature_coefs[feat] < 0:
             pct = 100 - pct
-
         likelihoods.append((feat, user_val, pct, len(nearby)))
 
     lik_df = pd.DataFrame(
@@ -194,27 +208,18 @@ with col_right:
     st.subheader("Diagnosis Estimate")
     ordered = [f for grp in FEATURE_GROUPS.values() for f in grp]
     X = np.array([[values[f] for f in ordered]])
-    p_malignant = pipe.predict_proba(X)[0,1]
+    p_mal = pipe.predict_proba(X)[0,1]
 
-    if p_malignant >= 0.5:
-        label = "MALIGNANT"
-        prob = p_malignant
-        count = int(round(p_malignant * 100))
-        icon = "🚨"
-        fn = st.error
+    if p_mal >= 0.5:
+        label, prob, count, icon, fn = (
+            "MALIGNANT", p_mal, int(round(p_mal*100)), "🚨", st.error
+        )
     else:
-        label = "BENIGN"
-        prob = 1 - p_malignant
-        count = int(round((1 - p_malignant) * 100))
-        icon = "✅"
-        fn = st.success
+        label, prob, count, icon, fn = (
+            "BENIGN", 1-p_mal, int(round((1-p_mal)*100)), "✅", st.success
+        )
 
-    if prob < 0.6:
-        conf = "Low"
-    elif prob < 0.85:
-        conf = "Medium"
-    else:
-        conf = "High"
+    conf = "Low" if prob<0.6 else "Medium" if prob<0.85 else "High"
 
     fn(
         f"**{label}**  \n"
