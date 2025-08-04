@@ -8,7 +8,7 @@ from sklearn.datasets import load_breast_cancer
 
 st.set_page_config(layout="wide")
 
-# Sticky styling + dark-mode metric boxes
+# Sticky styling + dark‐mode metric boxes
 st.markdown("""
     <style>
     [data-testid="column"]:nth-of-type(3) > div {
@@ -26,6 +26,11 @@ st.markdown("""
         padding: 0.75rem;
         border-radius: 0.5rem;
         margin-bottom: 1rem;
+    }
+    .metric-box h4 {
+        margin: 0 0 0.25rem 0;
+        font-size: 1rem;
+        font-weight: bold;
     }
     .metric-box p {
         margin: 0 0 0.5rem 0;
@@ -48,7 +53,7 @@ def load_model(path: Path):
 
 pipe = load_model(MODEL_PATH)
 
-# Pull out the final estimator’s coefs
+# Extract coefficients from the final estimator
 model = pipe.steps[-1][1]
 raw_coefs = getattr(model, 'coef_', [[0]*len(pipe.feature_names_in_)])[0]
 
@@ -62,7 +67,7 @@ SELECTED_FEATURES = [
 ]
 feature_coefs = {feat: float(raw_coefs[i]) for i, feat in enumerate(SELECTED_FEATURES)}
 
-# Percentile bounds
+# Precompute percentile bounds
 percentile_bounds = {}
 for feat in SELECTED_FEATURES:
     low, high = np.percentile(df[feat], [5, 95])
@@ -80,7 +85,7 @@ FEATURE_GROUPS = {
     "Texture": ["mean texture"]
 }
 
-# Session-state init
+# Session state init
 if "reset_trigger" not in st.session_state:
     st.session_state.reset_trigger = None
 
@@ -114,18 +119,16 @@ with col_left:
         for container, feat in zip(cols, feats):
             with container:
                 coef = feature_coefs.get(feat, 0.0)
-                direction_word = "Increasing" if coef > 0 else "Decreasing"
+                direction = "Increasing" if coef > 0 else "Decreasing"
                 low, high, step, avg = percentile_bounds[feat]
 
-                # — Subheading + direction on one line —
+                # Three‐line box: name, avg, direction
                 st.markdown(
                     f"""
 <div class='metric-box'>
-  <p style='margin-bottom:0.25rem;'>
-    <strong style='display:inline-block; font-size:1rem'>{feat.title()}</strong>
-    &nbsp;<strong style='display:inline'>{direction_word}</strong> {feat} indicates malignancy.
-  </p>
+  <h4>{feat.title()}</h4>
   <p><em>Population average: {avg:.3f}</em></p>
+  <p><strong>{direction}</strong> {feat} indicates malignancy.</p>
 </div>
 """,
                     unsafe_allow_html=True
