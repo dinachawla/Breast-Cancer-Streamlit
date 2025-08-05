@@ -10,12 +10,36 @@ from sklearn.datasets import load_breast_cancer
 # Must call set_page_config before any other Streamlit commands
 st.set_page_config(layout="wide")
 
-# 1) Inject CSS into main page
+# Inject CSS for the metric-box border (as you had before)
+components.html(
+    """
+    <style>
+      .metric-box {
+        background: transparent !important;
+        border: 1px solid var(--secondary-background-color) !important;
+        color: var(--text-color) !important;
+        padding: 0.75rem !important;
+        border-radius: 0.5rem !important;
+        margin-bottom: 1rem !important;
+        box-sizing: border-box !important;
+      }
+    </style>
+    """,
+    height=0,
+)
+
+# Inject CSS to adjust spacing around your headings and metric boxes
 st.markdown(
     """
     <style>
-      [data-testid="stMarkdownContainer"] .metric-box {
-        border: 1px solid var(--secondary-background-color) !important;
+      /* Space above/below each group title */
+      [data-testid="stMarkdownContainer"] h3 {
+        margin-top: 1.5rem;
+        margin-bottom: 0.3rem;
+      }
+      /* Tighten space between heading and first metric-box */
+      .metric-box {
+        margin-top: 0.25rem !important;
       }
     </style>
     """,
@@ -112,6 +136,7 @@ left_col, right_col = st.columns([1, 1], gap="large")
 with left_col:
     values = {}
     for group_title, feats in FEATURE_GROUPS.items():
+        # Your headings will now have the tightened margins
         st.markdown(f"### {group_title}")
         cols = st.columns(len(feats))
         for col, feat in zip(cols, feats):
