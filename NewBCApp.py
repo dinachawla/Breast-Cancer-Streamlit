@@ -8,7 +8,7 @@ from sklearn.datasets import load_breast_cancer
 
 st.set_page_config(layout="wide")
 
-# Sticky styling + theme-adaptive metric boxes using Streamlit theme variables
+# Sticky styling + theme-adaptive metric boxes
 st.markdown("""
     <style>
     [data-testid="column"]:nth-of-type(3) > div {
@@ -22,9 +22,8 @@ st.markdown("""
     }
     .metric-box {
         background-color: transparent;
-        border: 1.5px solid var(--text-color); /* Theme-adaptive */
-        opacity: 0.25; /* Subtle in both light & dark */
-        color: var(--text-color);
+        border: 1.5px solid var(--secondary-background-color); /* Theme-adaptive border */
+        color: var(--text-color); /* Keep text in theme text color */
         padding: 0.75rem;
         border-radius: 0.5rem;
         margin-bottom: 1rem;
