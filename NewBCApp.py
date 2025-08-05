@@ -12,36 +12,36 @@ st.set_page_config(layout="wide")
 st.markdown(
     """
     <style>
-      /* 1) Group title spacing */
+      /* 1) Collapse the gap under your group titles (h3) */
       [data-testid="stMarkdownContainer"] h3 {
-        margin-top: 1rem;       /* space above each heading */
-        margin-bottom: 0rem !important; /* collapse space below heading */
+        margin-top: 1rem;            /* keep a little space above */
+        margin-bottom: 0 !important; /* zero space below */
       }
 
-      /* 2) Metric-box overall styling + tighter margins */
+      /* 2) Pull each metric-box right up under its heading */
       [data-testid="stMarkdownContainer"] .metric-box {
+        margin-top: 0 !important;    /* zero gap above box */
+        margin-bottom: 0.5rem !important; /* small gap below box */
+      }
+
+      /* 3) Snug the <h4> inside each box against the top */
+      .metric-box h4 {
+        margin-top: 0 !important;    /* no extra breathing room */
+        margin-bottom: 0.2rem !important;
+      }
+
+      /* (keep the rest of your styling as before) */
+      .metric-box {
         background: transparent !important;
         border: 1px solid var(--secondary-background-color) !important;
         color: var(--text-color) !important;
         padding: 0.75rem !important;
         border-radius: 0.5rem !important;
         box-sizing: border-box !important;
-        margin-top: 0rem !important;    /* pull box right under the h3 */
-        margin-bottom: 0.5rem !important; /* shrink gap below box */
       }
-
-      /* 3) Headings inside each box */
-      .metric-box h4 {
-        margin-top: 0.1rem !important;   /* snug against top of box */
-        margin-bottom: 0.2rem;           /* keep a bit of breathing room */
-      }
-
-      /* 4) Paragraph text inside each box */
       .metric-box p {
-        margin: 0.15rem 0;
+        margin: 0.15rem 0 !important;
       }
-
-      /* 5) Sliders, number inputs, and buttons under each box */
       [data-testid="stSlider"],
       [data-testid="stNumberInput"] > div,
       [data-testid="stButton"] {
