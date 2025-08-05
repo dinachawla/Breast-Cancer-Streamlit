@@ -119,42 +119,9 @@ if st.session_state.reset_trigger:
 def sync_slider(f): st.session_state[f"s_{f}"] = st.session_state[f"n_{f}"]
 def sync_number(f): st.session_state[f"n_{f}"] = st.session_state[f"s_{f}"]
 
-# ---------------- UI ----------------
+# Build UI
 st.title("Cura – Breast Cancer ML Classifier 🩺")
 st.caption(f"Model hold-out accuracy: {TEST_ACC:.1%}")
-
-# Theme toggle
-theme_choice = st.radio(
-    "Theme mode:",
-    options=["System", "Light", "Dark"],
-    index=0,
-    horizontal=True,
-)
-
-# Apply custom theme CSS if not using system
-if theme_choice != "System":
-    if theme_choice == "Light":
-        custom_theme = """
-        <style>
-        :root {
-            --background-color: #ffffff;
-            --secondary-background-color: #f0f2f6;
-            --text-color: #000000;
-        }
-        </style>
-        """
-    else:  # Dark
-        custom_theme = """
-        <style>
-        :root {
-            --background-color: #0e1117;
-            --secondary-background-color: #262730;
-            --text-color: #fafafa;
-        }
-        </style>
-        """
-    st.markdown(custom_theme, unsafe_allow_html=True)
-
 st.subheader("Adjust Tumor Characteristics")
 
 left_col, right_col = st.columns([1,1], gap="large")
