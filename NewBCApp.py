@@ -14,10 +14,11 @@ st.markdown(
     <style>
       /* 1) Group title spacing */
       [data-testid="stMarkdownContainer"] h3 {
-        margin-top: 1rem;    /* space above each heading */
-        margin-bottom: 0.2rem; /* tighten space below heading */
+        margin-top: 1rem;       /* space above each heading */
+        margin-bottom: 0rem !important; /* collapse space below heading */
       }
-      /* 2) Metric‐box overall styling + tighter margins */
+
+      /* 2) Metric-box overall styling + tighter margins */
       [data-testid="stMarkdownContainer"] .metric-box {
         background: transparent !important;
         border: 1px solid var(--secondary-background-color) !important;
@@ -25,18 +26,21 @@ st.markdown(
         padding: 0.75rem !important;
         border-radius: 0.5rem !important;
         box-sizing: border-box !important;
-        margin-top: 0.2rem !important;    /* shrink gap above box */
+        margin-top: 0rem !important;    /* pull box right under the h3 */
         margin-bottom: 0.5rem !important; /* shrink gap below box */
       }
+
       /* 3) Headings inside each box */
       .metric-box h4 {
-        margin-top: 0.2rem;
-        margin-bottom: 0.2rem;
+        margin-top: 0.1rem !important;   /* snug against top of box */
+        margin-bottom: 0.2rem;           /* keep a bit of breathing room */
       }
+
       /* 4) Paragraph text inside each box */
       .metric-box p {
         margin: 0.15rem 0;
       }
+
       /* 5) Sliders, number inputs, and buttons under each box */
       [data-testid="stSlider"],
       [data-testid="stNumberInput"] > div,
