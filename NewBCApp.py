@@ -11,31 +11,15 @@ st.set_page_config(layout="wide")
 # Sticky styling + theme-adaptive metric boxes
 st.markdown("""
     <style>
-    [data-testid="column"]:nth-of-type(3) > div {
-        position: sticky;
-        top: 80px;
-        background-color: var(--background-color);
-        padding: 1rem;
-        border-radius: 0.5rem;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.04);
-        z-index: 2;
-    }
+    /* make sure this runs after Streamlit’s default CSS */
     .metric-box {
-        background-color: transparent;
-        border: 1.5px solid var(--secondary-background-color); /* Theme-adaptive border */
-        color: var(--text-color); /* Keep text in theme text color */
-        padding: 0.75rem;
-        border-radius: 0.5rem;
-        margin-bottom: 1rem;
-    }
-    .metric-box h4 {
-        margin: 0 0 0.25rem 0;
-        font-size: 1rem;
-        font-weight: bold;
-    }
-    .metric-box p {
-        margin: 0 0 0.5rem 0;
-        font-size: 0.9rem;
+        background-color: transparent !important;
+        border: 1.5px solid var(--secondary-background-color) !important;
+        box-sizing: border-box !important;
+        color: var(--text-color) !important;
+        padding: 0.75rem !important;
+        border-radius: 0.5rem !important;
+        margin-bottom: 1rem !important;
     }
     </style>
 """, unsafe_allow_html=True)
