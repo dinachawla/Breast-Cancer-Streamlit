@@ -11,15 +11,15 @@ st.set_page_config(layout="wide")
 # Sticky styling + theme-adaptive metric boxes
 st.markdown("""
     <style>
-    /* make sure this runs after Streamlit’s default CSS */
+    /* must use Streamlit’s camelCase CSS variable names */
     .metric-box {
         background-color: transparent !important;
-        border: 1.5px solid var(--secondary-background-color) !important;
-        box-sizing: border-box !important;
-        color: var(--text-color) !important;
+        border: 1.5px solid var(--secondaryBackgroundColor) !important;
+        color: var(--textColor) !important;
         padding: 0.75rem !important;
         border-radius: 0.5rem !important;
         margin-bottom: 1rem !important;
+        box-sizing: border-box !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -124,7 +124,7 @@ with left_col:
                 desc = METRIC_DESCRIPTIONS[feat]
 
                 st.markdown(f"""
-<div class='metric-box'>
+<div class="metric-box">
   <h4>{feat.title()}</h4>
   <p>{desc}</p>
   <p><em>Population average: {avg:.3f}</em></p>
