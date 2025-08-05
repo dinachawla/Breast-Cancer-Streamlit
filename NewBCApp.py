@@ -8,10 +8,14 @@ from sklearn.datasets import load_breast_cancer
 
 st.set_page_config(layout="wide")
 
-# ─── Inject ALL custom CSS in ONE PLACE ──────────────────────────────────────
 st.markdown(
     """
     <style>
+      /* 0) Collapse gap between consecutive markdown containers */
+      [data-testid="stMarkdownContainer"] + [data-testid="stMarkdownContainer"] {
+        margin-top: 0 !important;
+      }
+
       /* 1) Collapse the gap under your group titles (h3) */
       [data-testid="stMarkdownContainer"] h3 {
         margin-top: 1rem;            /* keep a little space above */
@@ -20,17 +24,17 @@ st.markdown(
 
       /* 2) Pull each metric-box right up under its heading */
       [data-testid="stMarkdownContainer"] .metric-box {
-        margin-top: 0 !important;    /* zero gap above box */
-        margin-bottom: 0.5rem !important; /* small gap below box */
+        margin-top: -0.5rem !important;   /* negative to lift it even closer */
+        margin-bottom: 0.5rem !important; /* small gap below */
       }
 
       /* 3) Snug the <h4> inside each box against the top */
       .metric-box h4 {
-        margin-top: 0 !important;    /* no extra breathing room */
+        margin-top: 0 !important;
         margin-bottom: 0.2rem !important;
       }
 
-      /* (keep the rest of your styling as before) */
+      /* 4) Your existing box styles */
       .metric-box {
         background: transparent !important;
         border: 1px solid var(--secondary-background-color) !important;
@@ -42,6 +46,8 @@ st.markdown(
       .metric-box p {
         margin: 0.15rem 0 !important;
       }
+
+      /* 5) Tighten controls beneath each box */
       [data-testid="stSlider"],
       [data-testid="stNumberInput"] > div,
       [data-testid="stButton"] {
