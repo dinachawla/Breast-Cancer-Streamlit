@@ -10,23 +10,20 @@ from sklearn.datasets import load_breast_cancer
 # Must call set_page_config before any other Streamlit commands
 st.set_page_config(layout="wide")
 
-# Inject CSS *before* Streamlit renders any widgets, matching reset button styling
-components.html(
-    """
+# Inject CSS directly into the main page
+st.markdown("""
     <style>
       .metric-box {
         background: transparent !important;
-        border: 1px solid var(--secondary-background-color) !important;
-        color: var(--text-color) !important;
+        border: 1px solid var(--secondaryBackgroundColor) !important;
+        color: var(--textColor) !important;
         padding: 0.75rem !important;
         border-radius: 0.5rem !important;
         margin-bottom: 1rem !important;
         box-sizing: border-box !important;
       }
     </style>
-    """,
-    height=0,
-)
+    """, unsafe_allow_html=True)
 
 MODEL_PATH = Path("breast_cancer_pipe_11features.pkl")
 TEST_ACC = 0.965
