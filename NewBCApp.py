@@ -82,7 +82,7 @@ METRIC_DESCRIPTIONS = {
     "worst perimeter":    "Maximum boundary length, indicating irregular expansion.",
     "mean area":          "Average surface area of tumor cells.",
     "worst area":         "Largest area observed, showing aggressive cell clusters.",
-    "mean concavity":     "Average concavity of the tumor outline; higher = more indentations.",
+    "mean concavity":     "Average concavity of the tumor outline.",
     "worst concavity":    "Deepest indentations on the tumor boundary.",
     "mean concave points":"Average count of concave points on the tumor edge.",
     "worst concave points":"Maximum concave-point count, marking uneven growth.",
