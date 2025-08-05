@@ -8,21 +8,21 @@ from sklearn.datasets import load_breast_cancer
 
 st.set_page_config(layout="wide")
 
-# Sticky styling + dark‐mode metric boxes
+# Sticky styling + theme-adaptive metric boxes
 st.markdown("""
     <style>
     [data-testid="column"]:nth-of-type(3) > div {
         position: sticky;
         top: 80px;
-        background-color: white;
+        background-color: var(--background-color);
         padding: 1rem;
         border-radius: 0.5rem;
         box-shadow: 0 2px 6px rgba(0,0,0,0.04);
         z-index: 2;
     }
     .metric-box {
-        background-color: #2a2a2a;
-        color: #e1e1e1;
+        background-color: var(--secondary-background-color);
+        color: var(--text-color);
         padding: 0.75rem;
         border-radius: 0.5rem;
         margin-bottom: 1rem;
