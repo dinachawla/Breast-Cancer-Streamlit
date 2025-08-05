@@ -10,20 +10,17 @@ from sklearn.datasets import load_breast_cancer
 # Must call set_page_config before any other Streamlit commands
 st.set_page_config(layout="wide")
 
-# Inject CSS directly into the main page
-st.markdown("""
+# 1) Inject CSS into main page
+st.markdown(
+    """
     <style>
-      .metric-box {
-        background: transparent !important;
-        border: 1px solid var(--secondaryBackgroundColor) !important;
-        color: var(--textColor) !important;
-        padding: 0.75rem !important;
-        border-radius: 0.5rem !important;
-        margin-bottom: 1rem !important;
-        box-sizing: border-box !important;
+      [data-testid="stMarkdownContainer"] .metric-box {
+        border: 1px solid var(--secondary-background-color) !important;
       }
     </style>
-    """, unsafe_allow_html=True)
+    """,
+    unsafe_allow_html=True,
+)
 
 MODEL_PATH = Path("breast_cancer_pipe_11features.pkl")
 TEST_ACC = 0.965
